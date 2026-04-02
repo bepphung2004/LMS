@@ -100,15 +100,15 @@ const CourseDetails = () => {
         <div className='flex'>
           {[...Array(5)].map((_, i) => (<img className='w-3.5 h-3.5' key={i} src={i < Math.floor(calculateRating(courseData)) ? assets.star : assets.star_blank} alt='' />))}
         </div>
-        <p className='text-gray-500'> ({courseData.courseRatings.length} {courseData.courseRatings.length > 1 ? 'ratings' : 'rating'}) </p>
+        <p className='text-gray-500'> ({courseData.courseRatings.length} {courseData.courseRatings.length > 1 ? 'đánh giá' : 'đánh giá'}) </p>
 
-        <p>{courseData.enrolledStudents.length} {courseData.enrolledStudents.length > 1 ? 'students' : 'student'}</p>
+        <p>{courseData.enrolledStudents.length} {courseData.enrolledStudents.length > 1 ? 'học viên' : 'học viên'}</p>
       </div>
 
-      <p className='text-sm'>Course by <span className='text-blue-600 underline'>{courseData.educator.name}</span></p>
+      <p className='text-sm'>Giảng viên: <span className='text-blue-600 underline'>{courseData.educator.name}</span></p>
 
       <div className='pt-8 text-gray-800'>
-        <h2 className='text-xl font-semibold'>Course Structure</h2>
+        <h2 className='text-xl font-semibold'>Cấu trúc khóa học</h2>
 
         <div className='pt-5'>
           {courseData.courseContent.map((chapter, index) => (
@@ -119,7 +119,7 @@ const CourseDetails = () => {
                   src={assets.down_arrow_icon} alt="arrow icon" />
                   <p className='font-medium md:text-base text-sm'>{chapter.chapterTitle}</p>
                 </div>
-                <p className='text-sm md:text-default'>{chapter.chapterContent.length} lectures - {calculateChapterTime(chapter)}</p>
+                <p className='text-sm md:text-default'>{chapter.chapterContent.length} bài giảng - {calculateChapterTime(chapter)}</p>
               </div>
 
               <div className={`overflow-hidden transition-all duration-300 ${openSections[index] ? 'max-h-96' : 'max-h-0'}`}>
@@ -132,7 +132,7 @@ const CourseDetails = () => {
                         <div className='flex gap-2'>
                           {lecture.isPreviewFree && <p onClick={() => setPlayerData({
                             videoId: lecture.lectureUrl.split('/').pop()
-                          })} className='text-blue-500 cursor-pointer'>Preview</p>}
+                          })} className='text-blue-500 cursor-pointer'>Xem thử</p>}
                           <p>{humanizeDuration(lecture.lectureDuration * 60 * 1000, {units: ['h', 'm']})}</p>
                         </div>
                       </div>
@@ -146,7 +146,7 @@ const CourseDetails = () => {
       </div>
 
       <div className='py-20 text-sm md:text-default'>
-        <h3 className='text-xl font-semibold text-gray-800'>Course Description</h3>
+        <h3 className='text-xl font-semibold text-gray-800'>Mô tả khóa học</h3>
         <p className='pt-3 rich-text' 
         dangerouslySetInnerHTML={{__html : courseData.courseDescription}}></p>
       </div>
@@ -165,13 +165,13 @@ const CourseDetails = () => {
         <div className='p-5'>
           <div className='flex items-center gap-2'>
             <img className='w-3.5' src={assets.time_left_clock_icon} alt="time left clock icon" />
-            <p className='text-red-500'><span className='font-medium'>5 days</span> left at this price</p>
+            <p className='text-red-500'><span className='font-medium'>Còn 5 ngày</span> với mức giá ưu đãi này</p>
           </div>
 
           <div className='flex gap-3 items-center pt-2'>
             <p className='text-gray-800 md:text-4xl text-2xl font-semibold'>{currency} {(courseData.coursePrice - courseData.discount * courseData.coursePrice / 100).toFixed(2)}</p>
             <p className='md:text-lg text-gray-500 line-through'>{currency} {courseData.coursePrice}</p>
-            <p className='md:text-lg text-gray-500'>{courseData.discount}% off</p>
+            <p className='md:text-lg text-gray-500'>Giảm {courseData.discount}%</p>
           </div>
 
           <div className='flex items-center text-sm md:text-default gap-4 pt-2 md:pt-4 text-gray-500'>
@@ -191,21 +191,21 @@ const CourseDetails = () => {
 
             <div className='flex items-center gap-1'>
               <img src={assets.lesson_icon} alt="lesson icon" />
-              <p>{calculateNoOfLectures(courseData)} lessons</p>
+              <p>{calculateNoOfLectures(courseData)} bài giảng</p>
             </div>
             
           </div>
 
-          <button onClick={enrollCourse} className='md:mt-5 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium'>{isAlreadyEnrolled ? 'Already Enrolled' : 'Enroll Now'}</button>
+          <button onClick={enrollCourse} className='md:mt-5 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium'>{isAlreadyEnrolled ? 'Đã đăng ký' : 'Đăng ký ngay'}</button>
 
           <div className='pt-6'>
-            <p className='md:text-xl text-lg font-medium text-gray-800'>What's in the course ?</p>
+            <p className='md:text-xl text-lg font-medium text-gray-800'>Bạn nhận được gì từ khóa học?</p>
             <ul className='ml-4 pt-2 text-sm md:text-default list-disc text-gray-500'>
-              <li>Lifetime access with free updates.</li>
-              <li>Step-by-step, hands-on project guidance.</li>
-              <li>Downloadable resources and source code.</li>
-              <li>Quizzes to test your knowledge.</li>
-              <li>Certificate of completion.</li>
+              <li>Truy cập trọn đời và cập nhật miễn phí.</li>
+              <li>Hướng dẫn thực hành từng bước qua dự án.</li>
+              <li>Tài nguyên và mã nguồn có thể tải về.</li>
+              <li>Bài kiểm tra đánh giá kiến thức.</li>
+              <li>Cấp chứng nhận hoàn thành khóa học.</li>
             </ul>
           </div>
 

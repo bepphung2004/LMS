@@ -9,7 +9,7 @@ import { toast } from 'react-toastify'
 const Dashboard = () => {
 
   const [dashboardData, setDashboardData] = useState(null)
-  const { currency, backendUrl, getToken, isEducator } = useContext(AppContext)
+  const { backendUrl, getToken, isEducator } = useContext(AppContext)
 
   const fetchDashboardData = async () => {
     try {
@@ -43,7 +43,7 @@ const Dashboard = () => {
             <img src={assets.appointments_icon} alt="" />
             <div>
               <p className='text-2xl font-medium text-gray-600'>{dashboardData.totalCourses}</p>
-              <p className='text-base text-gray-500'>Total Courses</p>
+              <p className='text-base text-gray-500'>Tổng số khóa học</p>
             </div>
           </div>
 
@@ -51,7 +51,7 @@ const Dashboard = () => {
             <img src={assets.patients_icon} alt="" />
             <div>
               <p className='text-2xl font-medium text-gray-600'>{dashboardData.enrolledStudentsData.length}</p>
-              <p className='text-base text-gray-500'>Total Enrollment</p>
+              <p className='text-base text-gray-500'>Tổng lượt đăng ký</p>
             </div>
           </div>
 
@@ -59,19 +59,19 @@ const Dashboard = () => {
             <img src={assets.earning_icon} alt="" />
             <div>
               <p className='text-2xl font-medium text-gray-600'>{dashboardData.totalEarnings}</p>
-              <p className='text-base text-gray-500'>Total Earnings</p>
+              <p className='text-base text-gray-500'>Tổng doanh thu</p>
             </div>
           </div>  
         </div>
         <div>
-          <h2 className='pb-4 text-lg font-medium'>Latest Enrollments</h2>
+          <h2 className='pb-4 text-lg font-medium'>Đăng ký mới nhất</h2>
           <div className='flex flex-col items-center max-w-4xl w-full overflow-hidden rounded-md bg-white border border-gray-500/20'>
             <table className='table-fixed md:table-auto w-full overflow-hidden'>
               <thead className='text-gray-900 border-b border-gray-500/20 text-sm text-left'>
                 <tr>
                   <th className='px-4 py-3 font-semibold text-center hidden sm:table-cell'>#</th>
-                  <th className='px-4 py-3 font-semibold'>Student Name</th>
-                  <th className='px-4 py-3 font-semibold'>Course Title</th>
+                  <th className='px-4 py-3 font-semibold'>Tên học viên</th>
+                  <th className='px-4 py-3 font-semibold'>Tên khóa học</th>
                 </tr>
               </thead>
               <tbody className='text-sm text-gray-500'>

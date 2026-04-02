@@ -147,34 +147,34 @@ const AddCourse = () => {
     <div className='h-screen overflow-scroll flex flex-col items-start justify-between md:p-8 md:pb-0 p-4 pt-8 pb-0'>
       <form onSubmit={handleSubmit} className='flex flex-col gap-4 max-w-md w-full text-gray-500'>
         <div className='flex flex-col gap-1'>
-          <p>Course Title</p>
-          <input onChange={e => setCourseTitle(e.target.value)} value={courseTitle} type='text' placeholder='Type here' className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500 required' />
+          <p>Tên khóa học</p>
+          <input onChange={e => setCourseTitle(e.target.value)} value={courseTitle} type='text' placeholder='Nhập tên khóa học' className='outline-none md:py-2.5 py-2 px-3 rounded border border-gray-500 required' />
         </div>
         
         <div className='flex flex-col gap-1'>
-          <p>Course Description</p>
+          <p>Mô tả khóa học</p>
           <div ref={editorRef} className='border border-gray-500 rounded'></div>
         </div>
 
         <div className='flex items-center justify-between flex-wrap'>
           <div className='flex flex-col gap-1'>
-            <p>Course Price</p>
+            <p>Giá khóa học</p>
             <input onChange={e => setCoursePrice(e.target.value)} value={coursePrice} type="number" placeholder='0' className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500 required' />
           </div>
           
           <div className='flex md:flex-row flex-col items-center gap-3'>
-            <p>Course Thumbnail</p>
+            <p>Ảnh đại diện khóa học</p>
             <label htmlFor="thumbnailImage" className='flex items-center gap-3'>
               <img src={assets.file_upload_icon} alt="" className='p-3 bg-blue-500 rounded'/>
               <input type="file" id='thumbnailImage' onChange={e => setImage(e.target.files[0])} accept='image/*' hidden />
-              <img src={image ? URL.createObjectURL(image) : ''} alt="" className='max-h-10' />
+              <img src={image ? URL.createObjectURL(image) : null} alt="" className='max-h-10' />
             </label>
 
           </div>
         </div>
 
         <div>
-          <p>Discount %</p>
+          <p>Giảm giá (%)</p>
           <input onChange={e => setDiscount(e.target.value)} value={discount} type="number" placeholder='0' min={0} max={100} className='outline-none md:py-2.5 py-2 w-28 px-3 rounded border border-gray-500 required' />
         </div>
 
@@ -187,31 +187,31 @@ const AddCourse = () => {
                   <img onClick={() => handleChapter('toggle', chapter.chapterId)} src={assets.dropdown_icon} width={14} alt="" className={`mr-2 cursor-pointer transition-all ${chapter.collapsed && 'rotate-90'}`}/>
                   <span className='font-semibold'>{chapterIndex +1} {chapter.chapterTitle}</span>
                 </div>
-                <span className='text-gray-500'>{chapter.chapterContent.length} Lectures</span>
+                <span className='text-gray-500'>{chapter.chapterContent.length} Bài giảng</span>
                 <img className='cursor-pointer' src={assets.cross_icon} alt="" onClick={() => handleChapter('remove', chapter.chapterId)}/>
               </div>
               {!chapter.collapsed && (
                 <div className='p-4'>
                   {chapter.chapterContent.map((lecture, lectureIndex) => (
                     <div key={lectureIndex} className='flex justify-between items-center mb-2'>
-                      <span>{lectureIndex +1} - {lecture.lectureTitle} - {lecture.lectureDuration} mins - <a href={lecture.lectureUrl}>Link</a> - {lecture.isPreviewFree ? 'Free Preview' : 'Paid'}</span>
+                      <span>{lectureIndex +1} - {lecture.lectureTitle} - {lecture.lectureDuration} phút - <a href={lecture.lectureUrl}>Liên kết</a> - {lecture.isPreviewFree ? 'Xem thử miễn phí' : 'Trả phí'}</span>
                       <img className='cursor-pointer' src={assets.cross_icon} alt="" onClick={() => handleLecture('remove', chapter.chapterId, lectureIndex)}/>
                     </div>
                   ))}
-                  <div className='inline-flex bg-gray-100 p-2 rounded cursor-pointer mt-2' onClick={() => handleLecture('add', chapter.chapterId)}>+ Add Lecture</div>
+                  <div className='inline-flex bg-gray-100 p-2 rounded cursor-pointer mt-2' onClick={() => handleLecture('add', chapter.chapterId)}>+ Thêm bài giảng</div>
                 </div>
               )}
             </div>
           ))}
-          <div className='flex justify-center items-center bg-blue-100 p-2 rounded-lg cursor-pointer' onClick={() => handleChapter('add')}>+ Add Chapter</div>
+          <div className='flex justify-center items-center bg-blue-100 p-2 rounded-lg cursor-pointer' onClick={() => handleChapter('add')}>+ Thêm chương</div>
 
           {showPopup && (
             <div className='fixed inset-0 flex items-center justify-center z-50 bg-black/30'>
               <div className='bg-white text-gray-700 p-4 rounded relative w-full max-w-80'>
-                <h2 className='text-lg font-semibold mb-4'>Add Lecture</h2>
+                <h2 className='text-lg font-semibold mb-4'>Thêm bài giảng</h2>
 
                 <div className='mb-2'>
-                  <p>Lecture Title</p>
+                  <p>Tên bài giảng</p>
                   <input
                     type="text"
                     className='mt-1 block w-full border rounded py-1 px-2'
@@ -221,7 +221,7 @@ const AddCourse = () => {
                 </div>
 
                 <div className='mb-2'>
-                  <p>Duration (minutes)</p>
+                  <p>Thời lượng (phút)</p>
                   <input
                     type="number"
                     className='mt-1 block w-full border rounded py-1 px-2'
@@ -231,7 +231,7 @@ const AddCourse = () => {
                 </div>
 
                 <div className='mb-2'>
-                  <p>Lecture URL</p>
+                  <p>Liên kết bài giảng</p>
                   <input
                     type="text"
                     className='mt-1 block w-full border rounded py-1 px-2'
@@ -241,7 +241,7 @@ const AddCourse = () => {
                 </div>
 
                 <div className='mb-2 flex items-center gap-2'>
-                  <label htmlFor='isPreviewFree' className='select-none'>Is Preview Free?</label>
+                  <label htmlFor='isPreviewFree' className='select-none'>Xem thử miễn phí?</label>
                   <input
                     id='isPreviewFree'
                     type="checkbox"
@@ -251,7 +251,7 @@ const AddCourse = () => {
                   />
                 </div>
 
-                <button type='button' className='w-full bg-blue-400 text-white px-4 py-2 rounded' onClick={addLecture}>Add</button>
+                <button type='button' className='w-full bg-blue-400 text-white px-4 py-2 rounded' onClick={addLecture}>Thêm</button>
 
                 <img onClick={() => setShowPopup(false)} src={assets.cross_icon} alt="" className='absolute top-4 right-4 w-4 cursor-pointer'/>
               </div>
@@ -260,7 +260,7 @@ const AddCourse = () => {
           }
         </div>
         <button type='submit' className='bg-black text-white w-max py-2.5 px-8 rounded my-4'>
-          ADD
+          THÊM KHÓA HỌC
         </button>
       </form>
     </div>

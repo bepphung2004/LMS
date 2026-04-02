@@ -146,12 +146,11 @@ export const addUserRating = async (req, res) => {
       return res.json({ success: false, message: 'User not enrolled in this course' })
     }
 
-    // Use field name `Rating` to match Course schema (case-sensitive)
     const existingRatingIndex = course.courseRatings.findIndex(r => r.userId === userId)
     if (existingRatingIndex > -1) {
-      course.courseRatings[existingRatingIndex].Rating = rating
+      course.courseRatings[existingRatingIndex].rating = rating
     } else {
-      course.courseRatings.push({ userId, Rating: rating })
+      course.courseRatings.push({ userId, rating })
     }
     await course.save()
     res.json({ success: true, message: 'Rating submitted successfully' })

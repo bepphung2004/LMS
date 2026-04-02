@@ -8,6 +8,7 @@ import educatorRouter from './routes/educatorRoutes.js'
 import connectCloudinary from './configs/cloudinary.js'
 import courseRouter from './routes/courseRoute.js'
 import userRouter from './routes/userRoute.js'
+import adminRouter from './routes/adminRoutes.js'
 import { stripeWebhooks } from './controllers/webhooks.js'
 
 // Initialize Express app
@@ -27,6 +28,7 @@ app.post('/clerk', express.json(), clerkWebhooks)
 app.use('/api/educator', express.json(), educatorRouter)
 app.use('/api/course', express.json(),  courseRouter)
 app.use('/api/user', express.json(),  userRouter)
+app.use('/api/admin', express.json(), adminRouter)
 app.post('/stripe', express.raw({ type: 'application/json' }), stripeWebhooks)
 
 // Port
