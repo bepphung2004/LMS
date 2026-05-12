@@ -81,11 +81,21 @@ export const AppContextProvider = (props) => {
     return Math.floor(totalRating / ratings.length)
   }
 
+  const viLang = {
+    language: "vi",
+    languages: {
+      vi: {
+        h: () => "giờ",
+        m: () => "phút"
+      }
+    }
+  }
+
   // Function to calculate course chapter time
   const calculateChapterTime = (chapter) => {
     let time = 0
     chapter.chapterContent.map((lecture) => time += lecture.lectureDuration)
-    return humanizeDuration(time * 60 * 1000, {units: ["h", "m"]})
+    return humanizeDuration(time * 60 * 1000, {units: ["h", "m"], ...viLang})
   }
 
   // Function to calculate course duration
@@ -94,7 +104,7 @@ export const AppContextProvider = (props) => {
     course.courseContent.map((chapter) => chapter.chapterContent.map(
       (lecture) => time += lecture.lectureDuration
       ))
-    return humanizeDuration(time * 60 * 1000, {units: ["h", "m"]})
+    return humanizeDuration(time * 60 * 1000, {units: ["h", "m"], ...viLang})
   }
 
   // Function to calculate the number of lectures in a course

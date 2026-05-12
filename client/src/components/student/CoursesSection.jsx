@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import CourseCard from './CourseCard'
 import { AppContext } from '../../context/AppContext'
 
-// ctrl + enter de xuong dong nhanh
+
 const CoursesSection = () => {
 
   const { allCourses } = useContext(AppContext)

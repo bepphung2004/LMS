@@ -239,7 +239,7 @@ const Player = () => {
                                 Xem
                               </p>
                             )}
-                            <p>{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'] })}</p>
+                            <p>{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'], language: 'vi', languages: { vi: { h: () => 'giờ', m: () => 'phút' } } })}</p>
                           </div>
                         </div>
                       </li>
