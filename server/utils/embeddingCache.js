@@ -1,7 +1,3 @@
-/**
- * Simple LRU cache for query embedding vectors.
- * Avoids re-computing the same embedding when users search with identical queries.
- */
 
 const CACHE_MAX = 200
 const CACHE_TTL_MS = 30 * 60 * 1000 // 30 minutes
@@ -13,7 +9,6 @@ const isExpired = (entry) => Date.now() - entry.createdAt > CACHE_TTL_MS
 const evictOldest = () => {
   if (cache.size <= CACHE_MAX) return
 
-  // Map iterates in insertion order — first key is oldest
   const oldestKey = cache.keys().next().value
   cache.delete(oldestKey)
 }
@@ -28,7 +23,6 @@ export const getCachedEmbedding = (key) => {
     return null
   }
 
-  // Move to end (most recently used)
   cache.delete(normalizedKey)
   cache.set(normalizedKey, entry)
 

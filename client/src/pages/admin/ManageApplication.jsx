@@ -147,7 +147,20 @@ const AdminApplications = () => {
       link.remove()
       window.URL.revokeObjectURL(objectUrl)
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Không thể tải CV')
+      if (error.response?.data instanceof Blob) {
+        const reader = new FileReader()
+        reader.onload = () => {
+          try {
+            const errData = JSON.parse(reader.result)
+            toast.error(errData.message || 'Không thể tải CV')
+          } catch (e) {
+            toast.error('Không thể tải CV')
+          }
+        }
+        reader.readAsText(error.response.data)
+      } else {
+        toast.error(error.response?.data?.message || error.message || 'Không thể tải CV')
+      }
     }
   }
 

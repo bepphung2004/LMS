@@ -7,7 +7,9 @@ const lectureSchema = new mongoose.Schema({
   lectureUrl: { type: String, required: true },
   lectureContent: { type: String, default: '' },
   isPreviewFree: { type: Boolean, default: true },
-  lectureOrder: { type: Number, required: true }
+  lectureOrder: { type: Number, required: true },
+  lectureQuiz: { type: Array, default: [] },
+  isQuizPublished: { type: Boolean, default: false }
 }, {_id: false})
 
 const chapterSchema = new mongoose.Schema({
@@ -42,7 +44,19 @@ const courseSchema = new mongoose.Schema({
   educator: { type: String, ref: 'User', required: true },
   enrolledStudents: [
     { type: String, ref: 'User' }
-  ]
+  ],
+  finalExam: {
+    requiredScorePercent: { type: Number, default: 70, min: 0, max: 100 },
+    isPublished: { type: Boolean, default: false },
+    questions: [
+      {
+        question: { type: String, required: true },
+        options: [{ type: String, required: true }],
+        correctAnswer: { type: Number, required: true },
+        explanation: { type: String, default: '' }
+      }
+    ]
+  }
 }, { timestamps: true, minimize: false })
 
 const Course = mongoose.model('Course', courseSchema)

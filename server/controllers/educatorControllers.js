@@ -46,27 +46,6 @@ const calculateEstimatedDurationHours = (courseContent = []) => {
   return Number((totalMinutes / 60).toFixed(1))
 }
 
-const sanitizeFileName = (fileName = 'cv-file') => {
-  return fileName
-    .normalize('NFKD')
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .replace(/_+/g, '_')
-}
-
-const storeCvLocally = async (cvFile) => {
-  const uploadsDir = path.join(process.cwd(), 'uploads', 'cv')
-  await fs.mkdir(uploadsDir, { recursive: true })
-
-  const originalName = cvFile.originalname || `cv-${Date.now()}.pdf`
-  const safeName = `${Date.now()}-${sanitizeFileName(originalName)}`
-  const destinationPath = path.join(uploadsDir, safeName)
-
-  await fs.copyFile(cvFile.path, destinationPath)
-  await fs.unlink(cvFile.path).catch(() => {})
-
-  return `/uploads/cv/${safeName}`
-}
-
 // Submit educator application (instead of direct role update)
 export const submitEducatorApplication = async (req, res) => {
   try {
@@ -121,12 +100,18 @@ export const submitEducatorApplication = async (req, res) => {
     let certificatesUrl = []
     
     if (req.files) {
-      if (req.files.certificates?.length) {
+      if (req.files.certificates?.length || req.files.cv?.length) {
         assertCloudinaryConfigured()
       }
 
       if (req.files.cv && req.files.cv[0]) {
-        cvUrl = await storeCvLocally(req.files.cv[0])
+        const cvFile = req.files.cv[0]
+        const cvUpload = await cloudinary.uploader.upload(cvFile.path, {
+          folder: 'educator-applications/cvs',
+          resource_type: 'auto'
+        })
+        cvUrl = cvUpload.secure_url
+        await fs.unlink(cvFile.path).catch(() => {})
       }
       
       if (req.files.certificates) {
@@ -136,6 +121,7 @@ export const submitEducatorApplication = async (req, res) => {
             resource_type: 'auto'
           })
           certificatesUrl.push(certUpload.secure_url)
+          await fs.unlink(cert.path).catch(() => {})
         }
       }
     }
@@ -448,5 +434,86 @@ export const getEnrolledStudentsData = async (req, res) => {
     res.json({ success: true, enrolledStudents })
   } catch (error) {
     res.json({ success: false, message: error.message })
+  }
+}
+
+export const saveLectureQuiz = async (req, res) => {
+  try {
+    const { courseId, lectureId, quizQuestions, isQuizPublished, quizzes } = req.body
+    const userId = req.auth.userId
+
+    const course = await Course.findById(courseId)
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Khóa học không tồn tại' })
+    }
+
+    if (course.educator !== userId) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền chỉnh sửa khóa học này' })
+    }
+
+    let found = false
+    if (course.courseContent) {
+      for (const chapter of course.courseContent) {
+        if (chapter.chapterContent) {
+          for (const lecture of chapter.chapterContent) {
+            if (lecture.lectureId === lectureId) {
+              lecture.lectureQuiz = quizzes || quizQuestions || []
+              lecture.isQuizPublished = true
+              found = true
+              break
+            }
+          }
+        }
+        if (found) break
+      }
+    }
+
+    if (!found) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy bài giảng' })
+    }
+
+    await course.save()
+
+    res.json({
+      success: true,
+      message: 'Đã lưu quiz bài học thành công',
+      isQuizPublished: true
+    })
+  } catch (error) {
+    console.error('Save Lecture Quiz error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
+export const saveFinalExam = async (req, res) => {
+  try {
+    const { courseId, requiredScorePercent, isPublished, questions } = req.body
+    const userId = req.auth.userId
+
+    const course = await Course.findById(courseId)
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Khóa học không tồn tại' })
+    }
+
+    if (course.educator !== userId) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền chỉnh sửa khóa học này' })
+    }
+
+    course.finalExam = {
+      requiredScorePercent: Number(requiredScorePercent ?? 70),
+      isPublished: true,
+      questions: questions || []
+    }
+
+    await course.save()
+
+    res.json({
+      success: true,
+      message: 'Đã lưu bài thi hết khóa thành công',
+      finalExam: course.finalExam
+    })
+  } catch (error) {
+    console.error('Save Final Exam error:', error)
+    res.status(500).json({ success: false, message: error.message })
   }
 }

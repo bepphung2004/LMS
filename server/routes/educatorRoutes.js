@@ -10,7 +10,9 @@ import {
   updateCourse,
   deleteCourse,
   getCourseById,
-  toggleCoursePublish
+  toggleCoursePublish,
+  saveLectureQuiz,
+  saveFinalExam
 } from '../controllers/educatorControllers.js'
 import upload from '../configs/multer.js'
 import { protectEducator, requireAuth } from './../middlewares/authMiddleware.js'
@@ -40,5 +42,7 @@ educatorRouter.patch('/course/:courseId/toggle-publish', protectEducator, toggle
 educatorRouter.get('/courses', protectEducator, getEducatorCourses)
 educatorRouter.get('/dashboard', protectEducator, educatorDashboardData)
 educatorRouter.get('/enrolled-students', protectEducator, getEnrolledStudentsData)
+educatorRouter.post('/save-lecture-quiz', protectEducator, saveLectureQuiz)
+educatorRouter.post('/save-final-exam', protectEducator, saveFinalExam)
 
 export default educatorRouter

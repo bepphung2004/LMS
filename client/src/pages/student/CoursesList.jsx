@@ -147,9 +147,9 @@ const CoursesList = () => {
     setFilteredCourse(filtered)
   }, [allCourses, keyword, topicFilter, levelFilter, durationFilter, priceRange])
 
-  // Debounced semantic search API call
+  
   useEffect(() => {
-    // Clear previous debounce timer
+    
     if (debounceRef.current) {
       clearTimeout(debounceRef.current)
       debounceRef.current = null

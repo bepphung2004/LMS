@@ -14,8 +14,7 @@ export const buildCourseEmbeddingText = (course = {}) => {
   const cleanTitle = rawTitle.replace(/Lập trình|Khóa học|Cơ bản|Nâng cao/gi, '').replace(/\s+/g, ' ').trim()
   const topic = course.courseTopic || ''
   const tags = Array.isArray(course.courseTags) ? course.courseTags.join(', ') : ''
-  
-  // Extract chapter titles and lecture titles for richer semantic signal
+
   const contentTitles = (course.courseContent || [])
     .flatMap(chapter => {
       const chapterTitle = stripHtml(chapter.chapterTitle || '')
@@ -29,7 +28,6 @@ export const buildCourseEmbeddingText = (course = {}) => {
   
   const summary = stripHtml(course.courseDescription || '').substring(0, 200)
 
-  // Natural Language Template for optimal semantic understanding
   const nlTemplate = [
     `${cleanTitle || rawTitle} là khóa học về ${topic}.`,
     tags ? `Các chủ đề then chốt gồm: ${tags}.` : '',
@@ -59,12 +57,7 @@ export const generateCourseEmbeddingVector = async (course = {}, extractor) => {
   return Array.from(output.data, (value) => Number(value))
 }
 
-/**
- * Generate embedding vector for a raw search query.
- * Unlike generateCourseEmbeddingVector, this embeds the query text directly
- * without wrapping in CORE/TOPIC/DESC format — producing a cleaner vector
- * that matches more accurately against course embeddings.
- */
+
 export const generateQueryEmbeddingVector = async (queryText, extractor) => {
   const activeExtractor = extractor || await getEmbeddingExtractor()
   const cleanQuery = String(queryText || '').trim()

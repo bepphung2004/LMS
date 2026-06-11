@@ -2,15 +2,10 @@ import { YoutubeTranscript } from 'youtube-transcript'
 
 const MAX_TRANSCRIPT_LENGTH = 8000
 
-/**
- * Extract YouTube Video ID from various URL formats.
- * Returns empty string if not a valid YouTube URL.
- */
 const extractVideoId = (url = '') => {
   const normalized = String(url).trim()
   if (!normalized) return ''
 
-  // Bare 11-char ID
   if (/^[a-zA-Z0-9_-]{11}$/.test(normalized)) {
     return normalized
   }
@@ -37,10 +32,7 @@ const extractVideoId = (url = '') => {
   return ''
 }
 
-/**
- * Fetch YouTube transcript for a given video URL.
- * Returns plain text transcript or empty string on failure.
- */
+
 export const fetchYouTubeTranscript = async (videoUrl) => {
   try {
     const videoId = extractVideoId(videoUrl)
@@ -49,7 +41,6 @@ export const fetchYouTubeTranscript = async (videoUrl) => {
     const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId, {
       lang: 'vi'
     }).catch(() =>
-      // Fallback to any available language
       YoutubeTranscript.fetchTranscript(videoId)
     )
 
@@ -63,7 +54,6 @@ export const fetchYouTubeTranscript = async (videoUrl) => {
       .replace(/\s+/g, ' ')
       .trim()
 
-    // Truncate to max length to avoid excessive DB storage
     if (fullText.length > MAX_TRANSCRIPT_LENGTH) {
       return fullText.slice(0, MAX_TRANSCRIPT_LENGTH) + '...'
     }
@@ -75,11 +65,7 @@ export const fetchYouTubeTranscript = async (videoUrl) => {
   }
 }
 
-/**
- * Process all lectures in a course content array and populate lectureContent.
- * Mutates the courseContent array in-place.
- * Returns the number of lectures that were successfully populated.
- */
+
 export const populateTranscripts = async (courseContent = []) => {
   let populated = 0
 
@@ -87,7 +73,6 @@ export const populateTranscripts = async (courseContent = []) => {
     if (!Array.isArray(chapter.chapterContent)) continue
 
     for (const lecture of chapter.chapterContent) {
-      // Skip if already has content
       if (lecture.lectureContent && lecture.lectureContent.trim().length > 0) continue
       if (!lecture.lectureUrl) continue
 

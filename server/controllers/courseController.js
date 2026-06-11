@@ -1,11 +1,11 @@
 import Course from '../models/Course.js'
 import {
-  createGenAIClient,
-  extractGenAIText,
-  isRateLimitError
+  AI_BUSY_MESSAGE
 } from '../utils/genaiHelper.js'
 import { generateQueryEmbeddingVector } from '../utils/embeddingHelper.js'
 import { getCachedEmbedding, setCachedEmbedding } from '../utils/embeddingCache.js'
+import { callGeminiWithFallback } from '../utils/geminiCallHelper.js'
+
 
 const normalizeText = (value = '') => {
   return String(value)
@@ -81,7 +81,6 @@ const lexicalScore = (query = '', course = {}) => {
 
   let score = 0
 
-  // Exact phrase match bonus — heavily rewards title containing full query
   const normalizedQuery = normalizeText(query)
   if (title.includes(normalizedQuery)) score += 5
 
@@ -92,17 +91,12 @@ const lexicalScore = (query = '', course = {}) => {
     if (description.includes(token)) score += 1
   })
 
-  // Normalize to 0–1 range for fair weighting with semantic score
   const maxPossible = 5 + tokens.length * (3 + 2.5 + 2 + 1)
   return maxPossible > 0 ? Math.min(1, score / maxPossible) : 0
 }
 
-/**
- * Compute an adaptive semantic guard threshold based on score distribution.
- * Instead of a fixed 0.7 cutoff (which drops valid results when query is short/vague),
- * we use 60% of the top score as threshold, with a hard floor.
- */
-const RELEVANCE_FLOOR = 0.25
+
+const RELEVANCE_FLOOR = 0.30
 const computeAdaptiveThreshold = (semanticScores = []) => {
   if (semanticScores.length === 0) return RELEVANCE_FLOOR
   const topScore = Math.max(...semanticScores)
@@ -110,85 +104,81 @@ const computeAdaptiveThreshold = (semanticScores = []) => {
 }
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-const GEMINI_ADVICE_MODELS = ['gemini-3-flash-preview', 'gemini-3-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']
 const SEMANTIC_WEIGHT = 0.75
 const LEXICAL_WEIGHT = 0.25
 
-const isModelNotFoundError = (error) => {
-  const message = String(error?.message || '').toLowerCase()
-  return message.includes('not found')
-    || message.includes('is not supported for generatecontent')
-    || message.includes('models/')
-}
+const AI_ADVICE_FALLBACK = 'Hiện tại hệ thống AI tư vấn đang bận, bạn hãy tham khảo lộ trình trong các khóa học bên dưới.'
 
-const isTemporarilyUnavailableError = (error) => {
-  const status = Number(error?.status || error?.code || 0)
-  const message = String(error?.message || '').toLowerCase()
-  return status === 503
-    || message.includes('503')
-    || message.includes('unavailable')
-    || message.includes('high demand')
-    || message.includes('overloaded')
-}
-
-const callGeminiForAdvice = async (query) => {
+const callGeminiForAdvice = async (query, topCourses) => {
   const hasGeminiApiKey = Boolean(GEMINI_API_KEY)
   console.log(`[AI Advice] GEMINI_API_KEY configured: ${hasGeminiApiKey}`)
   if (!hasGeminiApiKey) {
-    return 'Hiện tại hệ thống AI tư vấn đang bận, bạn hãy tham khảo lộ trình trong các khóa học bên dưới.'
+    return {
+      relevantCourseIds: topCourses.map(c => String(c._id)),
+      advice: AI_ADVICE_FALLBACK
+    }
   }
 
-  const ai = createGenAIClient(GEMINI_API_KEY)
-
   try {
-    const prompt = `Hãy đưa ra lời khuyên lộ trình học tập ngắn gọn (khoảng 2-3 câu) cho từ khóa: '${query}'.
+    const courseListText = topCourses
+      .map(c => `ID: ${c._id}\nTiêu đề: ${c.courseTitle}\nChủ đề: ${c.courseTopic}\nTrình độ: ${c.courseLevel}\nMô tả: ${(c.courseDescription || '').replace(/<[^>]*>/g, ' ').substring(0, 150)}`)
+      .join('\n\n')
 
-YÊU CẦU NGHIÊM NGẶT:
+    const prompt = `Bạn là chuyên gia tư vấn lộ trình học tập tại hệ thống Edemy.
+Học viên đang tìm kiếm từ khóa: "${query}"
 
-Bắt đầu nội dung lời khuyên ngay lập tức. KHÔNG giới thiệu bản thân (Ví dụ: KHÔNG dùng 'Dưới vai trò...', 'Chào bạn...', 'Tôi đề xuất...').
+Dưới đây là danh sách các khóa học ứng viên có trong cơ sở dữ liệu:
+${courseListText}
 
-KHÔNG sử dụng bất kỳ định dạng Markdown nào (không dùng dấu ** để in đậm, không gạch đầu dòng). Chỉ trả về văn bản thuần (Plain Text).
+Hãy thực hiện hai nhiệm vụ sau:
+Nhiệm vụ 1: Lọc (Filter) và Tái Sắp xếp (Rerank/Sequence):
+- Chỉ giữ lại những khóa học trực tiếp hữu ích và liên quan cho từ khóa tìm kiếm "${query}" của học viên.
+- Loại bỏ hoàn toàn những khóa học không liên quan hoặc chỉ liên quan rất yếu (Ví dụ: nếu tìm kiếm "xây dựng website", các khóa như Flutter, Kotlin Mobile App là KHÔNG liên quan và phải bị loại bỏ).
+- Sắp xếp các khóa học giữ lại theo thứ tự lộ trình học tập khoa học và logic nhất từ dễ đến khó (mức cơ bản/beginner trước, mức nâng cao/advanced sau).
 
-Trả lời bằng tiếng Việt.`
-    const configuredModels = (process.env.GEMINI_MODEL || '')
-      .split(',').map(m => m.trim()).filter(Boolean)
-    const models = [...new Set([...configuredModels, ...GEMINI_ADVICE_MODELS])]
-    console.log(`[AI Advice] Models configured: ${models.join(', ')}`)
+Nhiệm vụ 2: Viết Lời khuyên Lộ trình (Advice):
+- Viết 1 đoạn văn ngắn (2-3 câu, tiếng Việt) định hướng và khuyên học viên học theo trình tự các khóa học được chọn ở trên.
+- Chỉ đề cập đến các khóa học có trong danh sách được giữ lại ở Nhiệm vụ 1. Tuyệt đối không nhắc đến bất kỳ công nghệ hay khóa học nào ngoài danh sách được chọn.
+- Phải giải thích rõ ràng tại sao nên bắt đầu từ khóa cơ bản rồi mới đến khóa nâng cao (Ví dụ: "Nên học khóa ReactJS (cơ bản) trước để làm chủ giao diện, sau đó mới học NodeJS (nâng cao) để tự xây dựng Backend Server...").
+- Đi thẳng vào nội dung lời khuyên, không chào hỏi, không dùng Markdown (không in đậm **, không gạch đầu dòng).
 
-    for (const model of models) {
-      try {
-        console.log(`[AI Advice] Calling Gemini model: ${model}`)
-        const response = await ai.models.generateContent({
-          model,
-          contents: prompt
-        })
-        const text = extractGenAIText(response) || ''
-        const sanitizedText = text.replace(/\*/g, '').trim()
-        if (sanitizedText) return sanitizedText
-        console.warn(`[AI Advice] Empty/invalid Gemini response structure from model ${model}`)
-      } catch (modelError) {
-        if (isModelNotFoundError(modelError)) {
-          console.warn(`[AI Advice] Model ${model} unavailable, trying next model`)
-          continue
-        }
-        if (isTemporarilyUnavailableError(modelError)) {
-          console.warn(`[AI Advice] Model ${model} temporarily unavailable, trying next model`)
-          continue
-        }
-        if (isRateLimitError(modelError)) {
-          console.warn(`[AI Advice] Rate limit detected on ${model}, trying next model`)
-          continue
-        }
-        console.warn(`[AI Advice] Failed calling model ${model}:`, modelError.message)
-        continue
+BẮT BUỘC TRẢ VỀ KẾT QUẢ DƯỚI DẠNG MỘT ĐỐI TƯỢNG JSON DUY NHẤT theo cấu trúc mẫu sau (không chứa bất kỳ văn bản giải thích nào ngoài khối JSON):
+{
+  "relevantCourseIds": ["id_khóa_1_dễ", "id_khóa_2_khó_hơn"],
+  "advice": "Chuỗi văn bản lời khuyên lộ trình của bạn ở đây..."
+}
+Nếu không có khóa học nào liên quan đến từ khóa tìm kiếm, hãy trả về:
+{
+  "relevantCourseIds": [],
+  "advice": "Hiện tại hệ thống Edemy chưa có khóa học trực tiếp phù hợp với từ khóa \\"${query}\\". Tuy nhiên, bạn có thể tham khảo một số khóa học liên quan bên dưới để phát triển kỹ năng bổ trợ."
+}`
+
+    const text = await callGeminiWithFallback({
+      apiKey: GEMINI_API_KEY,
+      prompt,
+      logPrefix: 'AI Search Advice'
+    })
+
+    const cleanText = String(text || '')
+      .replace(/^```json\s*/i, '')
+      .replace(/```\s*$/, '')
+      .trim()
+
+    const parsed = JSON.parse(cleanText)
+    if (parsed && Array.isArray(parsed.relevantCourseIds)) {
+      return {
+        relevantCourseIds: parsed.relevantCourseIds.map(String),
+        advice: parsed.advice ? String(parsed.advice).replace(/\*/g, '').trim() : null
       }
     }
   } catch (error) {
-    console.warn('[AI Advice] Gemini call failed:', error.message)
+    console.warn('[AI Advice] Gemini call or JSON parsing failed:', error.message)
   }
 
-  console.warn('[AI Advice] All models failed, returning fallback advice')
-  return 'Hiện tại hệ thống AI tư vấn đang bận, bạn hãy tham khảo lộ trình trong các khóa học bên dưới.'
+  return {
+    relevantCourseIds: topCourses.map(c => String(c._id)),
+    advice: AI_ADVICE_FALLBACK
+  }
 }
 
 const mapCourseForSearch = (course = {}) => ({
@@ -238,24 +228,18 @@ export const getSemanticOverview = async (req, res) => {
       })
     }
 
-    // Check cache for query embedding
     let queryEmbedding = getCachedEmbedding(query)
     const embeddingCached = queryEmbedding !== null
 
-    // Run AI advice and course search in parallel
-    const [aiAdvice, courses] = await Promise.all([
-      callGeminiForAdvice(query),
-      Course.find({ isPublished: true })
-        .select('courseTitle courseDescription courseThumbnail coursePrice discount educator courseTopic courseLevel courseTags estimatedDurationHours courseContent aiEmbedding')
-        .populate({ path: 'educator' })
-        .lean()
-    ])
-
-    // Generate query embedding using dedicated function (no CORE/TOPIC/DESC noise)
     if (!queryEmbedding) {
       queryEmbedding = await generateQueryEmbeddingVector(query)
       setCachedEmbedding(query, queryEmbedding)
     }
+
+    const courses = await Course.find({ isPublished: true })
+      .select('courseTitle courseDescription courseThumbnail coursePrice discount educator courseTopic courseLevel courseTags estimatedDurationHours courseContent aiEmbedding')
+      .populate({ path: 'educator' })
+      .lean()
 
     const scoredCourses = courses
       .map((course) => {
@@ -280,41 +264,47 @@ export const getSemanticOverview = async (req, res) => {
     const ranked = scoredCourses
       .sort((a, b) => b._score - a._score)
 
-    // Adaptive threshold based on score distribution
     const allSemanticScores = ranked.map(c => c._semanticScore)
     const adaptiveThreshold = computeAdaptiveThreshold(allSemanticScores)
 
-    console.log(
-      `[SemanticSearch] Query: "${query}" | Threshold: ${adaptiveThreshold.toFixed(3)} (adaptive) | Cache: ${embeddingCached ? 'HIT' : 'MISS'}`
-    )
-    console.log(
-      `[SemanticSearch] Raw scores:`,
-      ranked.slice(0, 8).map(c => ({
-        title: c.courseTitle,
-        total: c._score.toFixed(3),
-        semantic: c._semanticScore.toFixed(3),
-        lexical: c._lexicalScore.toFixed(3)
-      }))
-    )
-
     const passed = ranked.filter((item) => item._semanticScore >= adaptiveThreshold)
 
-    const recommendations = passed
+    const candidates = passed.slice(0, 6)
+    const maxSemanticScore = candidates.length > 0 ? Math.max(...candidates.map(c => c._semanticScore)) : 0
+    let aiAdvice = null
+    let finalRecommendations = passed
+
+    if (candidates.length > 0) {
+      if (maxSemanticScore >= 0.35) {
+        const aiResult = await callGeminiForAdvice(query, candidates)
+        aiAdvice = aiResult.advice
+
+        if (aiResult.relevantCourseIds && aiResult.relevantCourseIds.length > 0) {
+          const idMap = new Map(aiResult.relevantCourseIds.map((id, index) => [String(id), index]))
+          
+          // Filter passed courses to only those returned by Gemini and sort by Gemini's preferred order
+          const filteredPassed = passed
+            .filter(c => idMap.has(String(c._id)))
+            .sort((a, b) => idMap.get(String(a._id)) - idMap.get(String(b._id)))
+
+          finalRecommendations = filteredPassed
+        } else {
+          finalRecommendations = []
+        }
+      } else {
+        // Fallback message for weak matches to avoid Gemini hallucinating mismatching advice
+        aiAdvice = `Hiện tại hệ thống Edemy chưa có khóa học trực tiếp về "${query}". Tuy nhiên, bạn có thể tham khảo một số khóa học liên quan bên dưới để phát triển kỹ năng bổ trợ.`
+        finalRecommendations = passed
+      }
+    } else {
+      finalRecommendations = []
+    }
+
+    const recommendations = finalRecommendations
       .slice(0, limit)
       .map(({ _semanticScore, _embeddingScore, _lexicalScore, ...item }) => item)
 
-    // Extract related topics from results for frontend suggestions
-    const relatedTopics = [...new Set(
-      passed.map(c => c.courseTopic).filter(Boolean)
-    )].slice(0, 5)
-
-    console.log(
-      '[SemanticSearch] Final Recommendations:',
-      recommendations.map((item) => ({
-        title: item.courseTitle,
-        score: item._score.toFixed(3)
-      }))
-    )
+    const relatedTopics = [...new Set(finalRecommendations.map(c => c.courseTopic).filter(Boolean))]
 
     res.json({
       success: true,
@@ -322,8 +312,8 @@ export const getSemanticOverview = async (req, res) => {
       advice: aiAdvice,
       recommendations,
       meta: {
-        totalMatches: passed.length,
-        searchMethod: 'hybrid',
+        totalMatches: recommendations.length,
+        searchMethod: 'llm-reranked',
         adaptiveThreshold: Number(adaptiveThreshold.toFixed(3)),
         weights: { semantic: SEMANTIC_WEIGHT, lexical: LEXICAL_WEIGHT },
         relatedTopics,

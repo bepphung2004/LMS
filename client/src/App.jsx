@@ -14,6 +14,7 @@ import AddCourse from './pages/educator/AddCourse'
 import MyCourses from './pages/educator/MyCourses'
 import EditCourse from './pages/educator/EditCourse'
 import StudentsEnrolled from './pages/educator/StudentsEnrolled'
+import ManageQuizzes from './pages/educator/ManageQuizzes'
 import Admin from './pages/admin/Admin'
 import DashboardAdmin from './pages/admin/Dashboard'
 import ManageApplication from './pages/admin/ManageApplication'
@@ -107,6 +108,7 @@ const App = () => {
           <Route path='add-course' element={<AddCourse />} />
           <Route path='my-courses' element={<MyCourses />} />
           <Route path='edit-course/:courseId' element={<EditCourse />} />
+          <Route path='manage-quizzes' element={<ManageQuizzes />} />
           <Route path='student-enrolled' element={<StudentsEnrolled />} />
         </Route>
 

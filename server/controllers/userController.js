@@ -59,6 +59,10 @@ export const purchaseCourse = async (req, res) => {
     const userData = await ensureUserIsActive(userId, res)
     if (!userData) return
 
+    if (userData.enrolledCourses && userData.enrolledCourses.map(id => id.toString()).includes(courseId.toString())) {
+      return res.status(400).json({ success: false, message: 'Bạn đã đăng ký khóa học này rồi' })
+    }
+
     const courseData = await Course.findById(courseId)
 
     if (!userData || !courseData) {
@@ -117,28 +121,151 @@ export const updateUserCourseProgress = async (req, res) => {
     const { courseId, lectureId } = req.body
     if (!await ensureUserIsActive(userId, res)) return
 
-    const progressData = await CourseProgress.findOne({ userId, courseId })
+    const course = await Course.findById(courseId)
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Khóa học không tồn tại' })
+    }
+
+    let progressData = await CourseProgress.findOne({ userId, courseId })
 
     if (progressData) {
-      if (progressData.lectureCompleted.includes(lectureId)) {
-        return res.json({ success: true, message: 'Lecture already marked as completed' })
+      if (!progressData.lectureCompleted.includes(lectureId)) {
+        progressData.lectureCompleted.push(lectureId)
       }
-
-      progressData.lectureCompleted.push(lectureId)
-      await progressData.save()
     } else {
-      await CourseProgress.create({
+      progressData = new CourseProgress({
         userId,
         courseId,
         lectureCompleted: [lectureId],
       })
     }
 
-    res.json({ success: true, message: 'Course progress updated successfully' })
+    // Check if they completed all lectures
+    let totalLecturesCount = 0
+    if (course.courseContent) {
+      course.courseContent.forEach(chapter => {
+        if (chapter.chapterContent) {
+          totalLecturesCount += chapter.chapterContent.length
+        }
+      })
+    }
+
+    const allLecturesDone = progressData.lectureCompleted.length >= totalLecturesCount
+
+    if (allLecturesDone) {
+      const hasFinalExam = course.finalExam?.isPublished === true
+      if (hasFinalExam) {
+        if (progressData.finalExamPassed) {
+          progressData.completed = true
+        } else {
+          progressData.completed = false
+        }
+      } else {
+        progressData.completed = true
+      }
+    }
+
+    await progressData.save()
+
+    res.json({ 
+      success: true, 
+      message: 'Course progress updated successfully',
+      progressData
+    })
   } catch (error) {
     res.json({ success: false, message: error.message })
   }
 }
+
+// Submit student final exam
+export const submitFinalExam = async (req, res) => {
+  try {
+    const userId = req.auth.userId
+    const { courseId, answers } = req.body
+    if (!await ensureUserIsActive(userId, res)) return
+
+    const course = await Course.findById(courseId)
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' })
+    }
+
+    const finalExam = course.finalExam
+    if (!finalExam || !finalExam.isPublished || !finalExam.questions || finalExam.questions.length === 0) {
+      return res.status(400).json({ success: false, message: 'Khóa học này không có bài thi hết khóa được xuất bản' })
+    }
+
+    let progressData = await CourseProgress.findOne({ userId, courseId })
+    if (!progressData) {
+      return res.status(400).json({ success: false, message: 'Bạn chưa bắt đầu khóa học này' })
+    }
+
+    let totalLecturesCount = 0
+    if (course.courseContent) {
+      course.courseContent.forEach(chapter => {
+        if (chapter.chapterContent) {
+          totalLecturesCount += chapter.chapterContent.length
+        }
+      })
+    }
+
+    const allLecturesDone = progressData.lectureCompleted.length >= totalLecturesCount
+    if (!allLecturesDone) {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Bạn chưa hoàn thành đầy đủ tất cả bài học. Hãy học đủ ${totalLecturesCount} bài học trước khi thi tốt nghiệp.` 
+      })
+    }
+
+    const questions = finalExam.questions
+    let correctCount = 0
+    const scoredQuestionsResult = []
+
+    questions.forEach((q, idx) => {
+      const studentAnswer = answers && typeof answers[idx] !== 'undefined' ? answers[idx] : null
+      const isCorrect = studentAnswer === q.correctAnswer
+      if (isCorrect) {
+        correctCount++
+      }
+      scoredQuestionsResult.push({
+        question: q.question,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        studentAnswer,
+        isCorrect,
+        explanation: q.explanation
+      })
+    })
+
+    const totalQuestions = questions.length
+    const scorePercent = totalQuestions > 0 ? Math.round((correctCount / totalQuestions) * 100) : 0
+    const requiredScorePercent = finalExam.requiredScorePercent || 70
+    const passed = scorePercent >= requiredScorePercent
+
+    progressData.finalExamScore = scorePercent
+    progressData.finalExamPassed = passed
+    if (passed) {
+      progressData.completed = true
+    }
+
+    await progressData.save()
+
+    res.json({
+      success: true,
+      message: passed ? 'Chúc mừng! Bạn đã thi đỗ kỳ thi tốt nghiệp khóa học!' : 'Tiếc quá! Bạn chưa đạt điểm số yêu cầu để đỗ kì thi.',
+      scorePercent,
+      requiredScorePercent,
+      passed,
+      correctCount,
+      totalQuestions,
+      results: scoredQuestionsResult
+    })
+
+  } catch (error) {
+    console.error('Submit final exam error:', error)
+    res.status(500).json({ success: false, message: error.message })
+  }
+}
+
 
 // Get User Course Progress
 export const getUserCourseProgress = async (req, res) => {

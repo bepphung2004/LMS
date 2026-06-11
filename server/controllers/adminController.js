@@ -4,6 +4,7 @@ import path from 'node:path'
 import User from '../models/User.js'
 import Course from '../models/Course.js'
 import { Purchase } from '../models/Purchases.js'
+import { CourseProgress } from '../models/CourseProgress.js'
 import EducatorApplication from '../models/EducatorApplication.js'
 
 const getExtFromContentType = (contentType = '') => {
@@ -113,18 +114,43 @@ export const downloadApplicationCv = async (req, res) => {
     if (application.cvUrl.startsWith('/uploads/')) {
       const relativePath = application.cvUrl.replace(/^\/+/, '')
       const absolutePath = path.join(process.cwd(), relativePath)
-      await fs.access(absolutePath)
-      return res.download(absolutePath, path.basename(absolutePath))
+      try {
+        await fs.access(absolutePath)
+        return res.download(absolutePath, path.basename(absolutePath))
+      } catch (err) {
+        return res.status(404).json({ success: false, message: 'CV không tồn tại trên hệ thống cục bộ' })
+      }
     }
 
-    // Legacy flow for previously uploaded remote URLs
+    // Cloudinary or remote URL flow
     const response = await fetch(application.cvUrl)
     if (!response.ok) {
-      return res.status(404).json({ success: false, message: 'Không thể tải CV từ nguồn cũ' })
+      const cldError = response.headers.get('x-cld-error')
+      if (response.status === 401 && cldError && cldError.toLowerCase().includes('deny')) {
+        return res.status(400).json({ 
+          success: false, 
+          message: 'Tải CV thất bại: Tài khoản Cloudinary của bạn đang chặn phân phối tệp PDF/ZIP. Vui lòng truy cập trang quản trị Cloudinary (Settings -> Security) và kích hoạt tùy chọn "Allow delivery of PDF and ZIP files" rồi lưu lại để cho phép tải CV.' 
+        })
+      }
+      return res.status(404).json({ success: false, message: 'Không thể tải CV từ nguồn lưu trữ trực tuyến' })
     }
 
     const contentType = response.headers.get('content-type') || 'application/octet-stream'
-    const ext = getExtFromContentType(contentType)
+    let ext = getExtFromContentType(contentType)
+
+    // Robust fallback: if type is generic binary/octet-stream or .bin, try to extract extension from the cvUrl path
+    if ((ext === '.bin' || contentType === 'application/octet-stream') && application.cvUrl) {
+      try {
+        const urlPath = new URL(application.cvUrl).pathname
+        const parsedExt = path.extname(urlPath).toLowerCase()
+        if (['.pdf', '.doc', '.docx', '.png', '.jpg', '.jpeg'].includes(parsedExt)) {
+          ext = parsedExt
+        }
+      } catch (e) {
+        console.error('Error parsing extension from CV URL:', e)
+      }
+    }
+
     const buffer = Buffer.from(await response.arrayBuffer())
     const fileName = `cv-${applicationId}${ext}`
 
@@ -356,6 +382,10 @@ export const deleteCourseAdmin = async (req, res) => {
       { enrolledCourses: courseId },
       { $pull: { enrolledCourses: courseId } }
     )
+
+    // Clean up related CourseProgress and Purchase records
+    await CourseProgress.deleteMany({ courseId })
+    await Purchase.deleteMany({ courseId })
 
     await Course.findByIdAndDelete(courseId)
 

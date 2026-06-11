@@ -72,8 +72,13 @@ LMS/
   * Tích hợp Auth (Clerk), thanh toán (Stripe), upload media (Cloudinary).
   * Chức năng cốt lõi: Phân quyền, đăng ký giảng viên, tạo khóa học, xem video.
   * Tinh chỉnh tính năng AI/Embeddings: Refactor thành Natural Language Template với trích xuất chapter/lecture từ courseContent. Embedding pipeline tối ưu cho model multilingual của Xenova.
-* **Đang làm dở / Tồn đọng**: 
-  * Tối ưu hóa UI/UX và logic edge cases cho luồng thanh toán và player khóa học.
+* **Đang làm dở / Tồn đọng** (Chi tiết: `BUSINESS_ISSUES_AND_FIX_PLAN.md`):
+  * **14 lỗi nghiệp vụ** đã được xác định qua audit toàn diện (3 Critical, 3 High, 5 Medium, 3 Low).
+  * 🔴 Critical: Biến `relatedTopics` chưa khai báo gây crash endpoint search; AI không cảnh báo khi nội dung dựa trên suy luận; lời khuyên AI search không khớp với khóa học thực tế.
+  * 🟠 High: Thiếu auto-complete bài học; thiếu bài kiểm tra hết khóa; cho phép mua trùng khóa học.
+  * 🟡 Medium: AI tools không kiểm tra enrollment; xóa khóa học không dọn dữ liệu liên quan; hardcode "Còn 5 ngày"; rating bị Math.floor; trường `completed` không được cập nhật.
+  * 🟢 Low: Thiếu chứng nhận hoàn thành; không phân trang API; quiz không lưu lịch sử.
+
 
 # CODING STANDARDS
 

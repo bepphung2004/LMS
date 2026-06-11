@@ -1,108 +1,37 @@
 import Course from '../models/Course.js'
+import User from '../models/User.js'
 import {
-  AI_BUSY_MESSAGE,
-  createGenAIClient,
-  extractGenAIText,
-  isRateLimitError,
-  sleep
+  AI_BUSY_MESSAGE
 } from '../utils/genaiHelper.js'
+import { callGeminiWithFallback } from '../utils/geminiCallHelper.js'
 
-// ─── Gemini Configuration ────────────────────────────────────────────
+const checkCourseAccess = async (userId, courseId) => {
+  if (!courseId) return false
+  const user = await User.findById(userId)
+  if (!user) return false
+  if (user.enrolledCourses && user.enrolledCourses.map(id => id.toString()).includes(courseId.toString())) {
+    return true
+  }
+  if (user.role === 'educator' || user.role === 'admin' || user.isEducator) {
+    return true
+  }
+  return false
+}
+
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY
-const GEMINI_DEFAULT_MODELS = ['gemini-3-flash-preview', 'gemini-3-flash', 'gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-2.0-flash-lite']
-const GEMINI_RETRY_ATTEMPTS = Math.max(1, Number(process.env.GEMINI_RETRY_ATTEMPTS || 2))
-const GEMINI_RATE_LIMIT_DELAY_MS = Math.max(800, Number(process.env.GEMINI_RATE_LIMIT_DELAY_MS || 1500))
 
-const getGeminiModels = () => {
-  const configuredModels = String(process.env.GEMINI_MODEL || '')
-    .split(',')
-    .map(m => m.trim())
-    .filter(Boolean)
-
-  return [...new Set([...configuredModels, ...GEMINI_DEFAULT_MODELS])]
-}
-
-const isModelNotFoundError = (error) => {
-  const message = String(error?.message || '').toLowerCase()
-  return message.includes('not found')
-    || message.includes('is not supported for generatecontent')
-    || message.includes('models/')
-}
-
-const isTemporarilyUnavailableError = (error) => {
-  const status = Number(error?.status || error?.code || 0)
-  const message = String(error?.message || '').toLowerCase()
-  return status === 503
-    || message.includes('503')
-    || message.includes('unavailable')
-    || message.includes('high demand')
-    || message.includes('overloaded')
-}
-
-// ─── Core AI Call (Gemini Only) ──────────────────────────────────────
 const callGemini = async (prompt, systemPrompt = '') => {
-  if (!GEMINI_API_KEY) {
-    throw new Error('Thiếu GEMINI_API_KEY trong .env. Vui lòng cấu hình để sử dụng tính năng AI.')
-  }
-
-  const ai = createGenAIClient(GEMINI_API_KEY)
-  const models = getGeminiModels()
-  let lastErrorMessage = 'Unknown Gemini error'
-  let encounteredRateLimit = false
-  let encounteredTemporaryBusy = false
-  const composedPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt
-
-  console.log(`[AI] Gemini models configured: ${models.join(', ')}`)
-
-  for (const model of models) {
-    console.log(`[AI] Calling Gemini model: ${model}`)
-    for (let attempt = 1; attempt <= GEMINI_RETRY_ATTEMPTS; attempt += 1) {
-      try {
-        const response = await ai.models.generateContent({
-          model,
-          contents: composedPrompt
-        })
-        const text = extractGenAIText(response)
-        if (text) return text
-        lastErrorMessage = `Gemini model ${model} returned empty content`
-      } catch (error) {
-        lastErrorMessage = error.message || `Gemini model ${model} failed`
-        if (isModelNotFoundError(error)) {
-          console.warn(`[AI] Model ${model} unavailable, trying next model`)
-          break
-        }
-        if (isTemporarilyUnavailableError(error)) {
-          encounteredTemporaryBusy = true
-          console.warn(`[AI] Model ${model} temporarily unavailable, attempt ${attempt}/${GEMINI_RETRY_ATTEMPTS}`)
-          await sleep(GEMINI_RATE_LIMIT_DELAY_MS * attempt)
-          continue
-        }
-        if (isRateLimitError(error)) {
-          encounteredRateLimit = true
-          console.warn(`[AI] Rate limit on model ${model}, attempt ${attempt}/${GEMINI_RETRY_ATTEMPTS}`)
-          await sleep(GEMINI_RATE_LIMIT_DELAY_MS * attempt)
-          continue
-        }
-        console.warn(`[AI] Failed model ${model}: ${lastErrorMessage}`)
-        break
-      }
-    }
-  }
-
-  if (encounteredRateLimit) {
-    throw new Error(AI_BUSY_MESSAGE)
-  }
-  if (encounteredTemporaryBusy) {
-    throw new Error(AI_BUSY_MESSAGE)
-  }
-
-  throw new Error(lastErrorMessage || 'Không thể tạo phản hồi từ Gemini')
+  return callGeminiWithFallback({
+    apiKey: GEMINI_API_KEY,
+    prompt,
+    systemPrompt,
+    logPrefix: 'AI'
+  })
 }
 
-// Alias for clarity
+
 const callAI = callGemini
 
-// ─── Helpers ─────────────────────────────────────────────────────────
 const parseJSONFromAI = (rawText) => {
   const cleaned = rawText.replace(/```json\n?|```/g, '').trim()
   return JSON.parse(cleaned)
@@ -123,10 +52,7 @@ const sanitizePlainText = (text = '') => {
     .trim()
 }
 
-/**
- * Find a specific lecture within a course document by chapterIndex + lectureIndex.
- * Returns { chapter, lecture } or null.
- */
+
 const findLecture = (course, chapterIndex, lectureIndex) => {
   const chapter = course?.courseContent?.[chapterIndex]
   if (!chapter) return null
@@ -135,10 +61,7 @@ const findLecture = (course, chapterIndex, lectureIndex) => {
   return { chapter, lecture }
 }
 
-/**
- * Find a specific lecture by its lectureId across all chapters.
- * Returns { chapter, lecture, chapterIndex, lectureIndex } or null.
- */
+
 const findLectureById = (course, lectureId) => {
   if (!lectureId || !course?.courseContent) return null
   for (let ci = 0; ci < course.courseContent.length; ci++) {
@@ -158,9 +81,7 @@ const findLectureById = (course, lectureId) => {
   return null
 }
 
-/**
- * Build a context string for a lecture, preferring transcript content.
- */
+
 const buildLectureContext = (lecture, chapter, course) => {
   const parts = [
     `Khóa học: ${course.courseTitle}`,
@@ -195,30 +116,34 @@ const buildFallbackDescription = ({ courseTitle, topics, targetAudience, courseL
   return `${courseTitle} là khóa học được thiết kế thực tế và dễ tiếp cận, giúp học viên nắm chắc kiến thức cốt lõi để áp dụng ngay vào công việc. ${topicSentence} ${targetAudience ? `Khóa học phù hợp cho ${targetAudience}.` : 'Khóa học phù hợp cho sinh viên IT và người mới đi làm muốn xây nền tảng vững chắc.'} ${courseLevel ? `Mức độ phù hợp: ${courseLevel}.` : ''} Sau khi hoàn thành, học viên có thể tự tin triển khai sản phẩm chất lượng, làm việc nhóm hiệu quả và phát triển lộ trình nghề nghiệp rõ ràng.`.trim()
 }
 
-// ─── API Controllers ─────────────────────────────────────────────────
 
-// AI Chatbot - Learning Assistant (RAG-enabled)
 export const chatWithAI = async (req, res) => {
   try {
     const { message, courseId, lectureId, lessonContext } = req.body
     const userId = req.auth.userId
 
+    if (!courseId) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin khóa học' })
+    }
+
+    const hasAccess = await checkCourseAccess(userId, courseId)
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập khóa học này' })
+    }
+
     if (!message) {
       return res.status(400).json({ success: false, message: 'Vui lòng nhập câu hỏi' })
     }
 
-    // Build context from actual lecture content (RAG)
     let contextInfo = ''
     if (courseId) {
       const course = await Course.findById(courseId)
       if (course) {
-        // Try to find lecture by ID first, then fallback to lessonContext title
         const found = lectureId ? findLectureById(course, lectureId) : null
 
         if (found) {
           contextInfo = buildLectureContext(found.lecture, found.chapter, course)
         } else {
-          // Fallback: use course description + lessonContext (title)
           const fallbackDescription = stripHtmlTags(course.courseDescription || '').trim()
           contextInfo = `
 Bối cảnh: Học viên đang học khóa "${course.courseTitle}".
@@ -261,17 +186,25 @@ Trả lời bằng tiếng Việt, ngắn gọn nhưng đầy đủ thông tin.`
   }
 }
 
-// Summarize Lesson Content (RAG-enabled)
 export const summarizeLesson = async (req, res) => {
   try {
     const { courseId, chapterIndex, lectureIndex, lectureId } = req.body
+    const userId = req.auth.userId
+
+    if (!courseId) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin khóa học' })
+    }
+
+    const hasAccess = await checkCourseAccess(userId, courseId)
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập khóa học này' })
+    }
 
     const course = await Course.findById(courseId)
     if (!course) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' })
     }
 
-    // Find lecture: prefer lectureId, fallback to indices
     let found = lectureId ? findLectureById(course, lectureId) : null
     if (!found) {
       found = findLecture(course, chapterIndex, lectureIndex)
@@ -338,58 +271,78 @@ Format output dưới dạng markdown với heading và bullet points.`
   }
 }
 
-// Generate Quiz Questions (RAG-enabled)
 export const generateQuiz = async (req, res) => {
   try {
-    const { courseId, chapterIndex, numberOfQuestions = 5 } = req.body
+    const { courseId, lectureId, chapterIndex, numberOfQuestions = 5 } = req.body
+    const userId = req.auth.userId
+
+    if (!courseId) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin khóa học' })
+    }
+
+    const hasAccess = await checkCourseAccess(userId, courseId)
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập khóa học này' })
+    }
 
     const course = await Course.findById(courseId)
     if (!course) {
       return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' })
     }
 
-    const chapter = course.courseContent[chapterIndex]
-    if (!chapter) {
-      return res.status(404).json({ success: false, message: 'Không tìm thấy chương' })
+    let transcript = ''
+    let hasTranscript = false
+    let promptSubject = ''
+
+    if (lectureId) {
+      const found = findLectureById(course, lectureId)
+      if (!found) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy bài giảng' })
+      }
+      const { chapter, lecture } = found
+      transcript = (lecture.lectureContent || '').trim()
+      hasTranscript = transcript.length > 0
+      promptSubject = `Bài học "${lecture.lectureTitle}" thuộc Chương "${chapter.chapterTitle}" trong Khóa học "${course.courseTitle}"`
+    } else if (typeof chapterIndex !== 'undefined') {
+      const chapter = course.courseContent[chapterIndex]
+      if (!chapter) {
+        return res.status(404).json({ success: false, message: 'Không tìm thấy chương' })
+      }
+      const lectureContextParts = chapter.chapterContent.map((lecture, idx) => {
+        const trans = (lecture.lectureContent || '').trim()
+        if (trans) {
+          return `Bài ${idx + 1} - ${lecture.lectureTitle}:\n${trans}`
+        }
+        return `Bài ${idx + 1} - ${lecture.lectureTitle} (chưa có nội dung chi tiết)`
+      })
+      transcript = lectureContextParts.join('\n\n')
+      hasTranscript = chapter.chapterContent.some(l => (l.lectureContent || '').trim().length > 0)
+      promptSubject = `Chương "${chapter.chapterTitle}" trong Khóa học "${course.courseTitle}"`
+    } else {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin bài giảng hoặc chương' })
     }
 
-    // Collect transcript content from all lectures in the chapter
-    const lectureContextParts = chapter.chapterContent.map((lecture, idx) => {
-      const transcript = (lecture.lectureContent || '').trim()
-      if (transcript) {
-        return `Bài ${idx + 1} - ${lecture.lectureTitle}:\n${transcript}`
-      }
-      return `Bài ${idx + 1} - ${lecture.lectureTitle} (chưa có nội dung chi tiết)`
-    })
+    const contextBlock = hasTranscript
+      ? `NỘI DUNG THỰC TẾ:\n${transcript}`
+      : `CHƯA CÓ TRANSCRIPT. DÙNG NGỮ CẢNH DỰ PHÒNG:
+Mô tả khóa học: ${stripHtmlTags(course.courseDescription || '') || 'Không có mô tả khóa học.'}`
 
-    const hasAnyTranscript = chapter.chapterContent.some(l => (l.lectureContent || '').trim().length > 0)
-
-    const contextBlock = hasAnyTranscript
-      ? `NỘI DUNG THỰC TẾ CÁC BÀI HỌC TRONG CHƯƠNG:\n${lectureContextParts.join('\n\n')}`
-      : `CHƯƠNG NÀY CHƯA CÓ TRANSCRIPT. DÙNG NGỮ CẢNH DỰ PHÒNG:
-Mô tả khóa học: ${stripHtmlTags(course.courseDescription || '') || 'Không có mô tả khóa học.'}
-Danh sách bài học:
-- ${chapter.chapterContent.map(l => l.lectureTitle).join('\n- ')}`
-
-    const prompt = `Tạo ${numberOfQuestions} câu hỏi trắc nghiệm cho chương học sau:
-
-Khóa học: ${course.courseTitle}
-Chương: ${chapter.chapterTitle}
+    const prompt = `Tạo ${numberOfQuestions} câu hỏi trắc nghiệm cho: ${promptSubject}
 
 ${contextBlock}
 
 Yêu cầu:
-- Mỗi câu hỏi có 4 đáp án (A, B, C, D)
+- Mỗi câu hỏi có 4 đáp án (không kèm theo bất kỳ tiền tố như A., B., C., D. hay A), B), C), D) nào ở đầu mỗi đáp án)
 - Chỉ có 1 đáp án đúng
-- ${hasAnyTranscript ? 'Câu hỏi phải dựa trên NỘI DUNG THỰC TẾ của bài học, không bịa đặt' : 'Câu hỏi phải dựa trên mô tả khóa học và ngữ cảnh tổng quát, không bịa chi tiết không có trong dữ liệu'}
-- Bao gồm câu hỏi lý thuyết và ứng dụng
+- ${hasTranscript ? 'Câu hỏi phải dựa trên NỘI DUNG THỰC TẾ được cung cấp ở trên, không bịa đặt nội dung khác' : 'Câu hỏi phải dựa trên mô tả khóa học và ngữ cảnh tổng quát, không bịa chi tiết không có trong dữ liệu'}
+- Bao gồm câu hỏi lý thuyết và ứng dụng liên quan mật thiết
 
 Trả về JSON với format:
 {
   "questions": [
     {
       "question": "Nội dung câu hỏi",
-      "options": ["A. Đáp án A", "B. Đáp án B", "C. Đáp án C", "D. Đáp án D"],
+      "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
       "correctAnswer": 0,
       "explanation": "Giải thích ngắn gọn vì sao đáp án đúng"
     }
@@ -400,7 +353,6 @@ Chỉ trả về JSON, không có text khác.`
 
     const response = await callAI(prompt)
     
-    // Parse JSON from response
     let quiz
     try {
       quiz = parseJSONFromAI(response)
@@ -408,15 +360,14 @@ Chỉ trả về JSON, không có text khác.`
       console.error('Quiz parse error:', parseError)
       return res.status(500).json({ 
         success: false, 
-        message: 'Lỗi xử lý dữ liệu quiz'
+        message: 'Lỗi xử lý dữ liệu quiz từ AI'
       })
     }
 
     res.json({ 
       success: true, 
       quiz: quiz.questions,
-      chapterTitle: chapter.chapterTitle,
-      hasTranscript: hasAnyTranscript
+      hasTranscript
     })
   } catch (error) {
     console.error('Generate Quiz Error:', error)
@@ -433,7 +384,101 @@ Chỉ trả về JSON, không có text khác.`
   }
 }
 
-// Generate Course Description for Educators
+export const generateFinalExam = async (req, res) => {
+  try {
+    const { courseId, numberOfQuestions = 10 } = req.body
+    const userId = req.auth.userId
+
+    if (!courseId) {
+      return res.status(400).json({ success: false, message: 'Thiếu thông tin khóa học' })
+    }
+
+    const hasAccess = await checkCourseAccess(userId, courseId)
+    if (!hasAccess) {
+      return res.status(403).json({ success: false, message: 'Bạn không có quyền truy cập khóa học này' })
+    }
+
+    const course = await Course.findById(courseId)
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Không tìm thấy khóa học' })
+    }
+
+    const outlineParts = []
+    if (Array.isArray(course.courseContent)) {
+      course.courseContent.forEach((chapter, cIdx) => {
+        outlineParts.push(`Chương ${cIdx + 1}: ${chapter.chapterTitle}`)
+        if (Array.isArray(chapter.chapterContent)) {
+          chapter.chapterContent.forEach((lecture, lIdx) => {
+            outlineParts.push(`  - Bài ${cIdx + 1}.${lIdx + 1}: ${lecture.lectureTitle}`)
+          })
+        }
+      })
+    }
+    const courseOutline = outlineParts.join('\n')
+
+    const prompt = `Tạo đề thi kết thúc khóa học gồm ${numberOfQuestions} câu hỏi trắc nghiệm tổng hợp cho khóa học sau:
+
+Tên khóa học: ${course.courseTitle}
+Chủ đề: ${course.courseTopic || 'Tổng quát'}
+Mô tả khóa học: ${stripHtmlTags(course.courseDescription || '') || 'Không có mô tả khóa học.'}
+
+CẤU TRÚC CHƯƠNG TRÌNH HỌC (ĐỂ AI HIỂU PHẠM VI KIẾN THỨC):
+${courseOutline}
+
+Yêu cầu:
+- Tạo đúng ${numberOfQuestions} câu hỏi trắc nghiệm chất lượng cao. Các câu hỏi phải bao quát toàn bộ nội dung khóa học theo cấu trúc chương trình ở trên.
+- Mỗi câu hỏi có đúng 4 đáp án (không kèm theo bất kỳ tiền tố như A., B., C., D. hay A), B), C), D) nào ở đầu mỗi đáp án).
+- Chỉ có đúng 1 đáp án đúng.
+- Không được sử dụng transcript chi tiết của các bài giảng (vì không được cung cấp), hãy dựa trên tiêu đề bài học, chương học và mô tả khóa học để sinh câu hỏi phù hợp nhất.
+- Đảm bảo câu hỏi có mức độ tổng hợp cao, phù hợp làm đề thi tốt nghiệp khóa học.
+
+Trả về JSON với format:
+{
+  "questions": [
+    {
+      "question": "Nội dung câu hỏi",
+      "options": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
+      "correctAnswer": 0,
+      "explanation": "Giải thích ngắn gọn vì sao đáp án đúng"
+    }
+  ]
+}
+
+Chỉ trả về JSON, không có text khác.`
+
+    const response = await callAI(prompt)
+    
+    let exam
+    try {
+      exam = parseJSONFromAI(response)
+    } catch (parseError) {
+      console.error('Final exam parse error:', parseError)
+      return res.status(500).json({ 
+        success: false, 
+        message: 'Lỗi xử lý dữ liệu đề thi tốt nghiệp từ AI'
+      })
+    }
+
+    res.json({ 
+      success: true, 
+      questions: exam.questions
+    })
+  } catch (error) {
+    console.error('Generate Final Exam Error:', error)
+    if (isBusyAIError(error)) {
+      return res.status(429).json({
+        success: false,
+        message: AI_BUSY_MESSAGE
+      })
+    }
+    res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Lỗi khi tạo đề thi tốt nghiệp'
+    })
+  }
+}
+
+
 export const generateCourseDescription = async (req, res) => {
   try {
     const { courseTitle, topics, targetAudience, courseLevel } = req.body
@@ -496,7 +541,6 @@ YÊU CẦU NGHIÊM NGẶT:
   }
 }
 
-// Check AI availability
 export const checkAIStatus = async (req, res) => {
   try {
     const isAvailable = !!GEMINI_API_KEY
