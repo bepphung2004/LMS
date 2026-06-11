@@ -9,7 +9,8 @@ export const AppContext = createContext()
 
 export const AppContextProvider = (props) => {
 
-  const backendUrl = import.meta.env.VITE_BACKEND_URL
+  const rawBackendUrl = import.meta.env.VITE_BACKEND_URL
+  const backendUrl = rawBackendUrl && rawBackendUrl.endsWith('/') ? rawBackendUrl.slice(0, -1) : rawBackendUrl
   const currency = import.meta.env.VITE_CURRENCY
   const normalizedCurrency = String(currency || 'VNĐ').toUpperCase()
   const navigate = useNavigate()
