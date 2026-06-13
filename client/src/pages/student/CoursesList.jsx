@@ -7,6 +7,7 @@ import { assets } from '../../assets/assets'
 import Footer from '../../components/student/Footer'
 import axios from 'axios'
 import { toast } from 'react-toastify'
+import Pagination from '../../components/Pagination'
 
 const DEBOUNCE_MS = 500
 
@@ -58,6 +59,9 @@ const CoursesList = () => {
   const [topicFilter, setTopicFilter] = useState('all')
   const [durationFilter, setDurationFilter] = useState('all')
   const [levelFilter, setLevelFilter] = useState('all')
+  const [page, setPage] = useState(1)
+  const limit = 8
+
   const hasAiOverview = (typeof aiAdvice === 'string' && aiAdvice.trim().length > 0) || aiRecommendations.length > 0
 
   // Collect AI recommendation IDs for badge display
@@ -147,7 +151,22 @@ const CoursesList = () => {
     setFilteredCourse(filtered)
   }, [allCourses, keyword, topicFilter, levelFilter, durationFilter, priceRange])
 
-  
+  useEffect(() => {
+    setPage(1)
+  }, [keyword, topicFilter, levelFilter, durationFilter, priceRange])
+
+  const totalPages = Math.max(1, Math.ceil(prioritizedCourses.length / limit))
+
+  const paginatedCourses = useMemo(() => {
+    const startIndex = (page - 1) * limit
+    return prioritizedCourses.slice(startIndex, startIndex + limit)
+  }, [prioritizedCourses, page, limit])
+
+  const handlePageChange = (newPage) => {
+    setPage(newPage)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   useEffect(() => {
     
     if (debounceRef.current) {
@@ -340,13 +359,14 @@ const CoursesList = () => {
       </div>
 
       <div className='grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 my-16 gap-3 px-2 md:p-0'>
-        {prioritizedCourses.map((course, index) => <CourseCard key={index} course={course} isAiRecommended={aiRecommendedIds.has(course._id)} />)}
+        {paginatedCourses.map((course, index) => <CourseCard key={index} course={course} isAiRecommended={aiRecommendedIds.has(course._id)} />)}
         {prioritizedCourses.length === 0 && (
           <div className='col-span-full py-12 text-center text-gray-500 border rounded-xl'>
             Không tìm thấy khóa học phù hợp với tiêu chí hiện tại.
           </div>
         )}
       </div>
+      <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
     </div>
     <Footer />
     </>

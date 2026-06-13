@@ -3,6 +3,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import { AppContext } from '../../context/AppContext'
 import Loading from '../../components/student/Loading'
+import Pagination from '../../components/Pagination'
 
 const AdminApplications = () => {
   const { backendUrl, getToken } = useContext(AppContext)
@@ -13,31 +14,22 @@ const AdminApplications = () => {
   const [selectedApp, setSelectedApp] = useState(null)
   const [rejectionReason, setRejectionReason] = useState('')
   const [processing, setProcessing] = useState(false)
-
-  const toStatusCounts = (items = []) => {
-    const counts = { all: items.length, pending: 0, approved: 0, rejected: 0 }
-    items.forEach((item) => {
-      if (item.status === 'pending') counts.pending += 1
-      if (item.status === 'approved') counts.approved += 1
-      if (item.status === 'rejected') counts.rejected += 1
-    })
-    return counts
-  }
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const fetchApplications = async () => {
     try {
       const token = await getToken()
-      const [listResponse, countsResponse] = await Promise.all([
-        axios.get(`${backendUrl}/api/admin/applications?status=${filter}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${backendUrl}/api/admin/applications?status=all`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ])
+      const { data } = await axios.get(
+        `${backendUrl}/api/admin/applications?status=${filter}&page=${page}&limit=10`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
 
-      if (listResponse.data.success) setApplications(listResponse.data.applications)
-      if (countsResponse.data.success) setStatusCounts(toStatusCounts(countsResponse.data.applications))
+      if (data.success) {
+        setApplications(data.applications)
+        setTotalPages(data.pagination.totalPages)
+        setStatusCounts(data.statusCounts)
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message)
     } finally {
@@ -47,7 +39,7 @@ const AdminApplications = () => {
 
   useEffect(() => {
     fetchApplications()
-  }, [filter])
+  }, [filter, page])
 
   const handleApprove = async (appId) => {
     if (!confirm('Bạn có chắc muốn duyệt đơn đăng ký này?')) return
@@ -179,7 +171,7 @@ const AdminApplications = () => {
         ].map(tab => (
           <button
             key={tab.value}
-            onClick={() => { setFilter(tab.value); setLoading(true) }}
+            onClick={() => { setFilter(tab.value); setPage(1); setLoading(true) }}
             className={`px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
               filter === tab.value
                 ? 'bg-blue-600 text-white shadow-lg shadow-blue-200'
@@ -247,6 +239,8 @@ const AdminApplications = () => {
         </table>
         </div>
       </div>
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
 
       {selectedApp && (
         <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>

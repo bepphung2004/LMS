@@ -4,6 +4,7 @@ import Loading from '../../components/student/Loading'
 import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useNavigate } from 'react-router-dom'
+import Pagination from '../../components/Pagination'
 
 const MyCourses = () => {
 
@@ -13,16 +14,21 @@ const MyCourses = () => {
 
   const [courses, setCourses] = useState(null)
   const [deleting, setDeleting] = useState(null)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const fetchEducatorCourses = async () => {
     try {
       const token = await getToken()
-      const { data } = await axios.get(backendUrl + '/api/educator/courses', {
+      const { data } = await axios.get(`${backendUrl}/api/educator/courses?page=${page}&limit=10`, {
         headers: {
           Authorization: `Bearer ${token}`
         }
       })
-      data.success && setCourses(data.courses)
+      if (data.success) {
+        setCourses(data.courses)
+        setTotalPages(data.pagination.totalPages)
+      }
     } catch (error) {
       toast.error(error.message)
     }
@@ -77,7 +83,7 @@ const MyCourses = () => {
     if ( hasEducatorAccess ) {
       fetchEducatorCourses()
     }
-  }, [hasEducatorAccess])
+  }, [hasEducatorAccess, page])
 
   return  courses ? (
     <div className='md:p-8 p-4 pt-8 pb-0'>
@@ -168,6 +174,7 @@ const MyCourses = () => {
             </div>
           )}
         </div>
+        <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
       </div>
     </div>
   ) : <Loading />

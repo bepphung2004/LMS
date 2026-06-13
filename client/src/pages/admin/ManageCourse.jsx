@@ -3,6 +3,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import { AppContext } from '../../context/AppContext'
 import Loading from '../../components/student/Loading'
+import Pagination from '../../components/Pagination'
 
 const AdminCourses = () => {
   const { backendUrl, getToken, formatCurrency } = useContext(AppContext)
@@ -11,29 +12,21 @@ const AdminCourses = () => {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [visibilityCounts, setVisibilityCounts] = useState({ all: 0, true: 0, false: 0 })
-
-  const toVisibilityCounts = (items = []) => {
-    const counts = { all: items.length, true: 0, false: 0 }
-    items.forEach((item) => {
-      if (item.isPublished) counts.true += 1
-      else counts.false += 1
-    })
-    return counts
-  }
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const fetchCourses = async () => {
     try {
       const token = await getToken()
-      const [listResponse, countsResponse] = await Promise.all([
-        axios.get(`${backendUrl}/api/admin/courses?isPublished=${filter}&search=${search}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${backendUrl}/api/admin/courses?isPublished=all&search=${search}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ])
-      if (listResponse.data.success) setCourses(listResponse.data.courses)
-      if (countsResponse.data.success) setVisibilityCounts(toVisibilityCounts(countsResponse.data.courses))
+      const { data } = await axios.get(
+        `${backendUrl}/api/admin/courses?isPublished=${filter}&search=${search}&page=${page}&limit=10`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
+      if (data.success) {
+        setCourses(data.courses)
+        setTotalPages(data.pagination.totalPages)
+        setVisibilityCounts(data.visibilityCounts)
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message)
     } finally {
@@ -43,7 +36,7 @@ const AdminCourses = () => {
 
   useEffect(() => {
     fetchCourses()
-  }, [filter])
+  }, [filter, page])
 
   const handleDelete = async (courseId, courseTitle) => {
     if (!confirm(`Bạn có chắc muốn xóa khóa học "${courseTitle}"?\n\nHành động này không thể hoàn tác!`)) return
@@ -105,7 +98,11 @@ const AdminCourses = () => {
   const handleSearch = (e) => {
     e.preventDefault()
     setLoading(true)
-    fetchCourses()
+    if (page === 1) {
+      fetchCourses()
+    } else {
+      setPage(1)
+    }
   }
 
   if (loading) return <Loading />
@@ -123,7 +120,7 @@ const AdminCourses = () => {
           ].map(tab => (
             <button
               key={tab.value}
-              onClick={() => { setFilter(tab.value); setLoading(true) }}
+              onClick={() => { setFilter(tab.value); setPage(1); setLoading(true) }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 filter === tab.value ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
               }`}
@@ -213,6 +210,8 @@ const AdminCourses = () => {
         </table>
         </div>
       </div>
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   )
 }

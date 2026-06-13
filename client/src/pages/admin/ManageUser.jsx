@@ -3,6 +3,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import { AppContext } from '../../context/AppContext'
 import Loading from '../../components/student/Loading'
+import Pagination from '../../components/Pagination'
 
 const AdminUsers = () => {
   const { backendUrl, getToken } = useContext(AppContext)
@@ -11,31 +12,22 @@ const AdminUsers = () => {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
   const [roleCounts, setRoleCounts] = useState({ all: 0, student: 0, educator: 0, admin: 0 })
-
-  const toRoleCounts = (items = []) => {
-    const counts = { all: items.length, student: 0, educator: 0, admin: 0 }
-    items.forEach((item) => {
-      if (item.role === 'student') counts.student += 1
-      if (item.role === 'educator') counts.educator += 1
-      if (item.role === 'admin') counts.admin += 1
-    })
-    return counts
-  }
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const fetchUsers = async () => {
     try {
       const token = await getToken()
-      const [listResponse, countsResponse] = await Promise.all([
-        axios.get(`${backendUrl}/api/admin/users?role=${filter}&search=${search}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        }),
-        axios.get(`${backendUrl}/api/admin/users?role=all&search=${search}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
-      ])
+      const { data } = await axios.get(
+        `${backendUrl}/api/admin/users?role=${filter}&search=${search}&page=${page}&limit=10`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      )
 
-      if (listResponse.data.success) setUsers(listResponse.data.users)
-      if (countsResponse.data.success) setRoleCounts(toRoleCounts(countsResponse.data.users))
+      if (data.success) {
+        setUsers(data.users)
+        setTotalPages(data.pagination.totalPages)
+        setRoleCounts(data.roleCounts)
+      }
     } catch (error) {
       toast.error(error.response?.data?.message || error.message)
     } finally {
@@ -45,7 +37,7 @@ const AdminUsers = () => {
 
   useEffect(() => {
     fetchUsers()
-  }, [filter])
+  }, [filter, page])
 
   const handleUnbanUser = async (userId, userName) => {
     if (!confirm(`Bạn có chắc muốn bỏ cấm tài khoản "${userName}"?`)) return
@@ -82,7 +74,11 @@ const AdminUsers = () => {
   const handleSearch = (e) => {
     e.preventDefault()
     setLoading(true)
-    fetchUsers()
+    if (page === 1) {
+      fetchUsers()
+    } else {
+      setPage(1)
+    }
   }
 
   if (loading) return <Loading />
@@ -101,7 +97,7 @@ const AdminUsers = () => {
           ].map(tab => (
             <button
               key={tab.value}
-              onClick={() => { setFilter(tab.value); setLoading(true) }}
+              onClick={() => { setFilter(tab.value); setPage(1); setLoading(true) }}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 filter === tab.value ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'
               }`}
@@ -170,7 +166,7 @@ const AdminUsers = () => {
                 <td className='px-4 py-3 text-center'>
                   {['student', 'educator'].includes(user.role) ? (
                     user.isBanned ? (
-                      <button onClick={() => handleUnbanUser(user._id, user.name)} className='text-sm font-medium px-3 py-1.5 rounded-lg transition-colors bg-emerald-50 text-emerald-700 hover:bg-emerald-100'>
+                       <button onClick={() => handleUnbanUser(user._id, user.name)} className='text-sm font-medium px-3 py-1.5 rounded-lg transition-colors bg-emerald-50 text-emerald-700 hover:bg-emerald-100'>
                         Bỏ cấm
                       </button>
                     ) : (
@@ -193,6 +189,8 @@ const AdminUsers = () => {
         </table>
         </div>
       </div>
+
+      <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
     </div>
   )
 }

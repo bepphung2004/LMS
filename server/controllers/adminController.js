@@ -64,18 +64,43 @@ export const getAdminDashboard = async (req, res) => {
 export const getEducatorApplications = async (req, res) => {
   try {
     const { status } = req.query // pending, approved, rejected, all
+    const page = Math.max(1, Number(req.query.page || 1))
+    const limit = Math.max(1, Number(req.query.limit || 10))
+    const skip = (page - 1) * limit
     
     let filter = {}
     if (status && status !== 'all') {
       filter.status = status
     }
 
+    // Status counts
+    const allApplications = await EducatorApplication.find().select('status')
+    const statusCounts = { all: allApplications.length, pending: 0, approved: 0, rejected: 0 }
+    allApplications.forEach(app => {
+      if (app.status === 'pending') statusCounts.pending++
+      if (app.status === 'approved') statusCounts.approved++
+      if (app.status === 'rejected') statusCounts.rejected++
+    })
+
+    const total = status === 'all' ? statusCounts.all : (statusCounts[status] || 0)
     const applications = await EducatorApplication.find(filter)
       .sort({ createdAt: -1 })
       .populate('userId', 'name imageUrl email')
       .populate('reviewedBy', 'name')
+      .skip(skip)
+      .limit(limit)
 
-    res.json({ success: true, applications })
+    res.json({
+      success: true,
+      applications,
+      statusCounts,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -246,6 +271,9 @@ export const rejectApplication = async (req, res) => {
 export const getAllUsers = async (req, res) => {
   try {
     const { role, search } = req.query
+    const page = Math.max(1, Number(req.query.page || 1))
+    const limit = Math.max(1, Number(req.query.limit || 10))
+    const skip = (page - 1) * limit
     
     let filter = {}
     if (role && role !== 'all') {
@@ -258,11 +286,41 @@ export const getAllUsers = async (req, res) => {
       ]
     }
 
+    // Role counts matching the search filter
+    let countsFilter = {}
+    if (search) {
+      countsFilter.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { email: { $regex: search, $options: 'i' } }
+      ]
+    }
+
+    const allMatchingUsers = await User.find(countsFilter).select('role')
+    const roleCounts = { all: allMatchingUsers.length, student: 0, educator: 0, admin: 0 }
+    allMatchingUsers.forEach(u => {
+      if (u.role === 'student') roleCounts.student++
+      if (u.role === 'educator') roleCounts.educator++
+      if (u.role === 'admin') roleCounts.admin++
+    })
+
+    const total = role === 'all' ? roleCounts.all : roleCounts[role] || 0
     const users = await User.find(filter)
       .select('-enrolledCourses')
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
 
-    res.json({ success: true, users })
+    res.json({
+      success: true,
+      users,
+      roleCounts,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }
@@ -348,6 +406,9 @@ export const unbanUserAccount = async (req, res) => {
 export const getAllCoursesAdmin = async (req, res) => {
   try {
     const { isPublished, search } = req.query
+    const page = Math.max(1, Number(req.query.page || 1))
+    const limit = Math.max(1, Number(req.query.limit || 10))
+    const skip = (page - 1) * limit
     
     let filter = {}
     if (isPublished !== undefined && isPublished !== 'all') {
@@ -357,11 +418,36 @@ export const getAllCoursesAdmin = async (req, res) => {
       filter.courseTitle = { $regex: search, $options: 'i' }
     }
 
+    // Visibility counts matching search filter
+    let countsFilter = {}
+    if (search) {
+      countsFilter.courseTitle = { $regex: search, $options: 'i' }
+    }
+    const allMatchingCourses = await Course.find(countsFilter).select('isPublished')
+    const visibilityCounts = { all: allMatchingCourses.length, true: 0, false: 0 }
+    allMatchingCourses.forEach(c => {
+      if (c.isPublished) visibilityCounts.true++
+      else visibilityCounts.false++
+    })
+
+    const total = isPublished === 'all' ? visibilityCounts.all : (isPublished === 'true' ? visibilityCounts.true : visibilityCounts.false)
     const courses = await Course.find(filter)
       .populate('educator', 'name email imageUrl')
       .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
 
-    res.json({ success: true, courses })
+    res.json({
+      success: true,
+      courses,
+      visibilityCounts,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
     res.status(500).json({ success: false, message: error.message })
   }

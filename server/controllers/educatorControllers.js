@@ -370,7 +370,33 @@ export const toggleCoursePublish = async (req, res) => {
 export const getEducatorCourses = async (req, res) => {
   try {
     const educator = req.auth.userId
-    const courses = await Course.find({ educator })
+    const { page, limit } = req.query
+
+    if (page) {
+      const pageNum = Math.max(1, Number(page || 1))
+      const limitNum = Math.max(1, Number(limit || 10))
+      const skip = (pageNum - 1) * limitNum
+
+      const total = await Course.countDocuments({ educator })
+      const courses = await Course.find({ educator })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+
+      return res.json({
+        success: true,
+        courses,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          totalPages: Math.ceil(total / limitNum)
+        }
+      })
+    }
+
+    // Default: fetch all
+    const courses = await Course.find({ educator }).sort({ createdAt: -1 })
     res.json({ success: true, courses })
   } catch (error) {
     res.json({ success: false, message: error.message })
@@ -422,16 +448,42 @@ export const getEnrolledStudentsData = async (req, res) => {
     const educator = req.auth.userId
     const courses = await Course.find({ educator })
     const courseIds = courses.map(course => course._id)
+
+    const page = Math.max(1, Number(req.query.page || 1))
+    const limit = Math.max(1, Number(req.query.limit || 10))
+    const skip = (page - 1) * limit
+
+    const total = await Purchase.countDocuments({
+      courseId: { $in: courseIds },
+      status: 'completed'
+    })
+
     const purchases = await Purchase.find({
       courseId: { $in: courseIds },
       status: 'completed'
-    }).populate('userId', 'name imageUrl').populate('courseId', 'courseTitle')
+    })
+      .populate('userId', 'name imageUrl')
+      .populate('courseId', 'courseTitle')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+
     const enrolledStudents = purchases.map(purchase => ({
       student: purchase.userId,
       courseTitle: purchase.courseId.courseTitle,
       purchaseDate: purchase.createdAt
     }))
-    res.json({ success: true, enrolledStudents })
+
+    res.json({
+      success: true,
+      enrolledStudents,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit)
+      }
+    })
   } catch (error) {
     res.json({ success: false, message: error.message })
   }
