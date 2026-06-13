@@ -131,7 +131,7 @@ const CertificateModal = ({ courseData, userData, progressData, onClose }) => {
                 {userData?.name || 'Tên Học Viên'}
               </h2>
               <p className="max-w-2xl mx-auto text-xs md:text-sm leading-relaxed text-slate-600 font-sans-inter font-light tracking-wide">
-                Đã hoàn thành xuất sắc khóa học chuyên sâu <strong className="text-slate-800 font-semibold">"{courseData?.courseTitle || 'Tên Khóa Học'}"</strong> {scoreText} cùng các thử thách chuyên môn và bài kiểm tra tốt nghiệp.
+                Đã hoàn thành xuất sắc khóa học chuyên sâu <strong className="text-slate-800 font-semibold">"{courseData?.courseTitle || 'Tên Khóa Học'}"</strong> {scoreText} chứng minh năng lực chuyên môn và hoàn thành đầy đủ các yêu cầu của chương trình đào tạo.
               </p>
             </div>
 
