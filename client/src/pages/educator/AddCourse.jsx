@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useContext } from 'react'
 import Quill from 'quill'
 import { assets } from '../../assets/assets'
 import { AppContext } from '../../context/AppContext'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import axios from 'axios'
 import AIDescriptionGenerator from '../../components/educator/AIDescriptionGenerator'
@@ -15,6 +16,7 @@ const generateId = () =>
 const AddCourse = () => {
 
   const { backendUrl, getToken, formatCurrency, fetchAllCourses } = useContext(AppContext)
+  const navigate = useNavigate()
   const quillRef = useRef(null)
   const editorRef = useRef(null)
 
@@ -173,7 +175,19 @@ const AddCourse = () => {
     <div className='md:p-8 p-4 pt-8 pb-0 relative'>
       <form onSubmit={handleSubmit} className='w-full max-w-5xl text-gray-700 space-y-6 pb-8'>
         <div className='bg-white border border-gray-200 rounded-xl p-5 md:p-6 shadow-sm space-y-5'>
-          <h1 className='text-2xl font-semibold text-gray-900'>Thêm khóa học mới</h1>
+          <div className='flex items-center gap-3'>
+            <button
+              type='button'
+              onClick={() => navigate('/educator/my-courses')}
+              className='p-1.5 hover:bg-gray-100 text-gray-600 hover:text-gray-900 rounded-lg transition-colors border border-gray-200 cursor-pointer flex items-center justify-center'
+              title='Quay lại quản lý khóa học'
+            >
+              <svg className='w-5 h-5' fill='none' stroke='currentColor' strokeWidth='2' viewBox='0 0 24 24'>
+                <path strokeLinecap='round' strokeLinejoin='round' d='M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18' />
+              </svg>
+            </button>
+            <h1 className='text-2xl font-semibold text-gray-900'>Thêm khóa học mới</h1>
+          </div>
 
           <div className='flex flex-col gap-1.5'>
             <p className='text-sm font-medium'>Tên khóa học</p>

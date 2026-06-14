@@ -44,26 +44,26 @@ const StudentsEnrolled = () => {
     <div className='md:p-8 p-4 pt-8 pb-0'>
       <div className='w-full max-w-5xl text-gray-700 space-y-6 pb-8'>
         <h2 className='text-lg font-medium text-gray-800'>Học viên đã đăng ký</h2>
-        <div className='w-full overflow-hidden rounded-xl bg-white border border-gray-200 shadow-sm'>
-          <table className='table-fixed md:table-auto w-full overflow-hidden pb-4'>
+        <div className='w-full overflow-x-auto rounded-xl bg-white border border-gray-200 shadow-sm'>
+          <table className='w-full table-auto'>
             <thead className='text-gray-900 border-b border-gray-200 text-sm text-left bg-gray-50'>
               <tr>
-                <th className='px-4 py-3 font-semibold text-center hidden sm:table-cell'>#</th>
-                <th className='px-4 py-3 font-semibold'>Tên học viên</th>
-                <th className='px-4 py-3 font-semibold'>Tên khóa học</th>
-                <th className='px-4 py-3 font-semibold hidden sm:table-cell'>Ngày đăng ký</th>
+                <th className='px-4 py-3 font-semibold text-center hidden sm:table-cell whitespace-nowrap'>#</th>
+                <th className='px-4 py-3 font-semibold whitespace-nowrap'>Tên học viên</th>
+                <th className='px-4 py-3 font-semibold whitespace-nowrap'>Tên khóa học</th>
+                <th className='px-4 py-3 font-semibold hidden sm:table-cell whitespace-nowrap'>Ngày đăng ký</th>
               </tr>
             </thead>
             <tbody className='text-sm text-gray-500'>
               {enrolledStudents.map((item, index) => (
-                <tr key={index} className='border-b border-gray-500/20'>
-                  <td className='px-4 py-3 text-center hidden sm:table-cell'>{(page - 1) * 10 + index + 1}</td>
-                  <td className='md:px-4 px-2 py-3 flex items-center space-x-3'>
+                <tr key={index} className='border-b border-gray-500/20 hover:bg-gray-50/50 transition-colors'>
+                  <td className='px-4 py-3 text-center hidden sm:table-cell whitespace-nowrap'>{(page - 1) * 10 + index + 1}</td>
+                  <td className='md:px-4 px-2 py-3 flex items-center space-x-3 whitespace-nowrap'>
                     <img src={item.student?.imageUrl} alt="" className='w-9 h-9 rounded-full'/>
                     <span className='truncate'>{item.student?.name}</span>
                   </td>
-                  <td className='px-4 py-3 truncate'>{item.courseTitle}</td>
-                  <td className='px-4 py-3 hidden sm:table-cell'>{new Date(item.purchaseDate).toLocaleDateString()}</td>
+                  <td className='px-4 py-3 whitespace-nowrap'>{item.courseTitle}</td>
+                  <td className='px-4 py-3 hidden sm:table-cell whitespace-nowrap'>{new Date(item.purchaseDate).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
