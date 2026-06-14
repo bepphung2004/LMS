@@ -1,5 +1,5 @@
 import React, { useCallback, useContext, useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { AppContext } from '../../context/AppContext'
 import Loading from '../../components/student/Loading'
 import { assets } from '../../assets/assets'
@@ -15,6 +15,7 @@ const CourseDetails = () => {
   const PREVIEW_DURATION_SECONDS = 4 * 60 + 11
 
   const { id } = useParams()
+  const navigate = useNavigate()
 
   const [courseData, setCourseData] = useState(null)
   const [openSections, setOpenSections] = useState({})
@@ -143,7 +144,8 @@ const CourseDetails = () => {
         return
       }
       if ( isAlreadyEnrolled ) {
-        return toast.warn('You are already enrolled in this course')
+        navigate(`/player/${courseData._id}`)
+        return
       }
 
       const token = await getToken()
@@ -239,19 +241,25 @@ const CourseDetails = () => {
                 <ul className='list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t border-gray-300'>
                   {chapter.chapterContent.map((lecture, i) => (
                     <li key={i} className='flex items-start gap-2 py-1'>
-                      <img src={assets.play_icon} alt="play icon" className='w-4 h-4 mt-1' />
-                      <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default'>
-                        <p>{lecture.lectureTitle}</p>
-                        <div className='flex gap-2'>
+                      <img src={assets.play_icon} alt="play icon" className='w-4 h-4 mt-1 flex-shrink-0' />
+                      <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default min-w-0'>
+                        <p className='pr-6 break-words leading-relaxed'>{lecture.lectureTitle}</p>
+                        <div className='flex items-center gap-5 flex-shrink-0 text-gray-500 ml-auto'>
                           {lecture.isPreviewFree && (
                             <p
                               onClick={() => handlePreviewLecture(lecture.lectureUrl)}
-                              className='text-blue-500 cursor-pointer'
+                              className='text-blue-500 cursor-pointer hover:underline whitespace-nowrap'
                             >
                               Xem thử
                             </p>
                           )}
-                          <p>{humanizeDuration(lecture.lectureDuration * 60 * 1000, {units: ['h', 'm'], language: 'vi', languages: { vi: { h: () => 'giờ', m: () => 'phút' } }})}</p>
+                          <p className='whitespace-nowrap'>
+                            {humanizeDuration(lecture.lectureDuration * 60 * 1000, {
+                              units: ['h', 'm'],
+                              language: 'vi',
+                              languages: { vi: { h: () => 'giờ', m: () => 'phút' } }
+                            })}
+                          </p>
                         </div>
                       </div>
                     </li>
@@ -349,7 +357,7 @@ const CourseDetails = () => {
             
           </div>
 
-          <button onClick={enrollCourse} className='md:mt-5 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium'>{isAlreadyEnrolled ? 'Đã đăng ký' : 'Đăng ký ngay'}</button>
+          <button onClick={enrollCourse} className='md:mt-5 mt-4 w-full py-3 rounded bg-blue-600 text-white font-medium'>{isAlreadyEnrolled ? 'Truy cập bài giảng' : 'Đăng ký ngay'}</button>
 
           <div className='pt-6'>
             <p className='md:text-xl text-lg font-medium text-gray-800'>Bạn nhận được gì từ khóa học?</p>

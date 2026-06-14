@@ -310,19 +310,19 @@ const Player = () => {
                   <ul className='list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t border-gray-300'>
                     {chapter.chapterContent.map((lecture, i) => (
                       <li key={i} className='flex items-start gap-2 py-1'>
-                        <img src={progressData && progressData.lectureCompleted.includes(lecture.lectureId) ? assets.blue_tick_icon : assets.play_icon} alt="play icon" className='w-4 h-4 mt-1' />
-                        <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default'>
-                          <p>{lecture.lectureTitle}</p>
-                          <div className='flex gap-2'>
+                        <img src={progressData && progressData.lectureCompleted.includes(lecture.lectureId) ? assets.blue_tick_icon : assets.play_icon} alt="play icon" className='w-4 h-4 mt-1 flex-shrink-0' />
+                        <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default min-w-0'>
+                          <p className='pr-6 break-words leading-relaxed'>{lecture.lectureTitle}</p>
+                          <div className='flex items-center gap-5 flex-shrink-0 text-gray-500 ml-auto'>
                             {lecture.lectureUrl && (
                               <p
                                 onClick={() => handleSelectLecture(lecture, index, i)}
-                                className='text-blue-500 cursor-pointer'
+                                className='text-blue-500 cursor-pointer hover:underline whitespace-nowrap'
                               >
                                 Xem
                               </p>
                             )}
-                            <p>{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'], language: 'vi', languages: { vi: { h: () => 'giờ', m: () => 'phút' } } })}</p>
+                            <p className='whitespace-nowrap'>{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'], language: 'vi', languages: { vi: { h: () => 'giờ', m: () => 'phút' } } })}</p>
                           </div>
                         </div>
                       </li>
