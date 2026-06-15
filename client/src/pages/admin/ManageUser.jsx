@@ -40,7 +40,7 @@ const AdminUsers = () => {
   }, [filter, page])
 
   const handleUnbanUser = async (userId, userName) => {
-    if (!confirm(`Bạn có chắc muốn bỏ cấm tài khoản "${userName}"?`)) return
+    if (!confirm(`Bạn có chắc muốn bỏ khóa tài khoản "${userName}"?`)) return
     try {
       const token = await getToken()
       const { data } = await axios.patch(`${backendUrl}/api/admin/users/${userId}/unban`, {}, {
@@ -56,7 +56,7 @@ const AdminUsers = () => {
   }
 
   const handleBanUser = async (userId, userName) => {
-    if (!confirm(`Bạn có chắc muốn cấm tài khoản "${userName}"?`)) return
+    if (!confirm(`Bạn có chắc muốn khóa tài khoản "${userName}"?`)) return
     try {
       const token = await getToken()
       const { data } = await axios.patch(`${backendUrl}/api/admin/users/${userId}/ban`, {}, {
@@ -159,7 +159,7 @@ const AdminUsers = () => {
                   <span className={`px-2 py-1 rounded text-xs font-medium ${
                     user.isBanned ? 'bg-red-100 text-red-700' : 'bg-emerald-100 text-emerald-700'
                   }`}>
-                    {user.isBanned ? 'Đã bị cấm' : 'Đang hoạt động'}
+                    {user.isBanned ? 'Đã bị khóa' : 'Đang hoạt động'}
                   </span>
                 </td>
                 <td className='px-4 py-3 text-sm text-gray-500'>{new Date(user.createdAt).toLocaleDateString('vi-VN')}</td>
@@ -167,11 +167,11 @@ const AdminUsers = () => {
                   {['student', 'educator'].includes(user.role) ? (
                     user.isBanned ? (
                        <button onClick={() => handleUnbanUser(user._id, user.name)} className='text-sm font-medium px-3 py-1.5 rounded-lg transition-colors bg-emerald-50 text-emerald-700 hover:bg-emerald-100'>
-                        Bỏ cấm
+                        Bỏ khóa
                       </button>
                     ) : (
                       <button onClick={() => handleBanUser(user._id, user.name)} className='text-sm font-medium px-3 py-1.5 rounded-lg transition-colors bg-red-50 text-red-600 hover:bg-red-100'>
-                        Cấm tài khoản
+                        Khóa tài khoản
                       </button>
                     )
                   ) : (

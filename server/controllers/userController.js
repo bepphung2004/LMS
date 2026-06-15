@@ -43,7 +43,13 @@ export const userEnrolledCourses = async (req, res) => {
     const userId = req.auth.userId
     if (!await ensureUserIsActive(userId, res)) return
 
-    const userData = await User.findById(userId).populate('enrolledCourses')
+    const userData = await User.findById(userId).populate({
+      path: 'enrolledCourses',
+      populate: {
+        path: 'educator',
+        select: 'name imageUrl'
+      }
+    })
     res.json({ success: true, enrolledCourses: userData.enrolledCourses })
   } catch (error) {
     res.json({ success: false, message: error.message })

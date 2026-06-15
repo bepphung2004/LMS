@@ -13,10 +13,6 @@ const CertificateModal = ({ courseData, userData, progressData, onClose }) => {
         year: 'numeric'
       })
 
-  const scoreText = progressData?.finalExamScore !== undefined 
-    ? `với điểm số tốt nghiệp ${progressData.finalExamScore}%` 
-    : ''
-
   const handlePrint = () => {
     window.print()
   }
@@ -50,10 +46,10 @@ const CertificateModal = ({ courseData, userData, progressData, onClose }) => {
             position: fixed;
             left: 0;
             top: 0;
-            width: 100vw;
-            height: 100vh;
-            margin: 0;
-            padding: 3rem;
+            width: 297mm;  /* A4 Landscape Width */
+            height: 210mm; /* A4 Landscape Height */
+            margin: 0 !important;
+            padding: 3.5rem !important;
             box-shadow: none !important;
             border: none !important;
             background: #faf8f5 !important; /* Force Cream Background */
@@ -63,16 +59,27 @@ const CertificateModal = ({ courseData, userData, progressData, onClose }) => {
             flex-direction: column !important;
             justify-content: space-between !important;
             align-items: stretch !important;
+            box-sizing: border-box !important;
+          }
+          html, body {
+            height: 100% !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
           }
           .no-print {
             display: none !important;
           }
         }
+        @page {
+          size: A4 landscape;
+          margin: 0;
+        }
       `}</style>
 
-      <div className="w-full max-w-5xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col no-print">
+      <div className="w-full max-w-5xl bg-white rounded-2xl overflow-hidden shadow-2xl border border-slate-200 flex flex-col print:border-none print:shadow-none print:bg-transparent">
         {/* Modal Header */}
-        <div className="px-8 py-5 bg-white flex items-center justify-between border-b border-slate-100">
+        <div className="px-8 py-5 bg-white flex items-center justify-between border-b border-slate-100 no-print">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-slate-50 rounded-xl flex items-center justify-center border border-slate-100">
               <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,7 +138,7 @@ const CertificateModal = ({ courseData, userData, progressData, onClose }) => {
                 {userData?.name || 'Tên Học Viên'}
               </h2>
               <p className="max-w-2xl mx-auto text-xs md:text-sm leading-relaxed text-slate-600 font-sans-inter font-light tracking-wide">
-                Đã hoàn thành xuất sắc khóa học chuyên sâu <strong className="text-slate-800 font-semibold">"{courseData?.courseTitle || 'Tên Khóa Học'}"</strong> {scoreText} chứng minh năng lực chuyên môn và hoàn thành đầy đủ các yêu cầu của chương trình đào tạo.
+                Đã hoàn thành xuất sắc khóa học chuyên sâu <strong className="text-slate-800 font-semibold">"{courseData?.courseTitle || 'Tên Khóa Học'}"</strong> chứng minh năng lực chuyên môn và hoàn thành đầy đủ các yêu cầu của chương trình đào tạo.
               </p>
             </div>
 
@@ -175,7 +182,7 @@ const CertificateModal = ({ courseData, userData, progressData, onClose }) => {
         </div>
 
         {/* Action Footer */}
-        <div className="px-8 py-5 bg-white border-t border-slate-100 flex justify-between gap-4">
+        <div className="px-8 py-5 bg-white border-t border-slate-100 flex justify-between gap-4 no-print">
           <button
             onClick={onClose}
             className="px-6 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-xl transition-all font-sans-inter text-sm"
