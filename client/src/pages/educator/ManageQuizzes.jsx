@@ -163,7 +163,7 @@ const ManageQuizzes = () => {
   }
 
   // Save Final Exam callback
-  const handleSaveFinalExam = async (requiredScorePercent, finalExamQuestions) => {
+  const handleSaveFinalExam = async (requiredScorePercent, durationMins, finalExamQuestions) => {
     if (!selectedCourseId) return
     setSavingFinalExam(true)
     try {
@@ -171,6 +171,7 @@ const ManageQuizzes = () => {
       const { data } = await axios.post(`${backendUrl}/api/educator/save-final-exam`, {
         courseId: selectedCourseId,
         requiredScorePercent: Number(requiredScorePercent),
+        durationMins: Number(durationMins),
         questions: finalExamQuestions
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -198,6 +199,7 @@ const ManageQuizzes = () => {
       const { data } = await axios.post(`${backendUrl}/api/educator/save-final-exam`, {
         courseId: selectedCourseId,
         requiredScorePercent: 70,
+        durationMins: 30,
         questions: []
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -294,6 +296,7 @@ const ManageQuizzes = () => {
             courseId={selectedCourseId}
             initialQuestions={selectedCourse.finalExam?.questions || []}
             initialScore={selectedCourse.finalExam?.requiredScorePercent ?? 70}
+            initialDuration={selectedCourse.finalExam?.durationMins ?? 30}
             onSave={handleSaveFinalExam}
             onCancel={() => setCurrentView('dashboard')}
             backendUrl={backendUrl}

@@ -10,7 +10,7 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import Loading from '../../components/student/Loading'
 import AIChatbot, { AIFloatingButton } from '../../components/student/AIChatbot'
-import { AILessonSummary, AIQuizGenerator, AIFinalExam } from '../../components/student/AITools'
+import { AILessonSummary, QuizPractice, FinalExam } from '../../components/student/AITools'
 import CertificateModal from '../../components/student/CertificateModal'
 
 const Player = () => {
@@ -89,6 +89,16 @@ const Player = () => {
     enrolledCourses.map((course) => {
       if (course._id === courseId) {
         setCourseData(course)
+        
+        // Auto-expand all chapters
+        if (course.courseContent) {
+          const initialOpen = {}
+          course.courseContent.forEach((_, idx) => {
+            initialOpen[idx] = true
+          })
+          setOpenSections(initialOpen)
+        }
+
         course.courseRatings.map((item) => {
           if (item.userId === userData._id){
             setInitialRating(item.rating ?? item.Rating ?? 0)
@@ -286,51 +296,97 @@ const Player = () => {
           <h2 className='text-xl font-semibold'>Cấu trúc khóa học</h2>
 
           <div className='pt-5'>
-            {courseData && courseData.courseContent.map((chapter, index) => (
-              <div key={index} className='border border-gray-300 bg-white mb-2 rounded'>
-                <div
-                  className='flex items-center justify-between px-4 py-3 cursor-pointer select-none'
-                  onClick={() => toggleSection(index)}
-                >
-                  <div className='flex items-center gap-2'>
-                    <img
-                      className={`transform transition-transform ${openSections[index] ? 'rotate-180' : ''}`}
-                      src={assets.down_arrow_icon}
-                      alt="arrow icon"
-                    />
-                    <p className='font-medium md:text-base text-sm'>{chapter.chapterTitle}</p>
+            {(() => {
+              let runningLectureIndex = 0;
+              return courseData && courseData.courseContent.map((chapter, index) => (
+                <div key={index} className='border border-gray-300 bg-white mb-2 rounded'>
+                  <div
+                    className='flex items-center justify-between px-4 py-3 cursor-pointer select-none'
+                    onClick={() => toggleSection(index)}
+                  >
+                    <div className='flex items-center gap-2'>
+                      <img
+                        className={`transform transition-transform ${openSections[index] ? 'rotate-180' : ''}`}
+                        src={assets.down_arrow_icon}
+                        alt="arrow icon"
+                      />
+                      <p className='font-medium md:text-base text-sm'>Chương {index + 1}: {chapter.chapterTitle}</p>
+                    </div>
+                    <p className='text-sm md:text-default'>
+                      {chapter.chapterContent.length} bài giảng - {calculateChapterTime(chapter)}
+                    </p>
                   </div>
-                  <p className='text-sm md:text-default'>
-                    {chapter.chapterContent.length} bài giảng - {calculateChapterTime(chapter)}
-                  </p>
+                  <div
+                    className={`overflow-hidden transition-all duration-300 ${openSections[index] ? 'max-h-96' : 'max-h-0'}`}
+                  >
+                    <ul className='list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t border-gray-300'>
+                      {chapter.chapterContent.map((lecture, i) => {
+                        runningLectureIndex++;
+                        return (
+                          <li key={i} className='flex items-start gap-2 py-1'>
+                            <img src={progressData && progressData.lectureCompleted.includes(lecture.lectureId) ? assets.blue_tick_icon : assets.play_icon} alt="play icon" className='w-4 h-4 mt-1 flex-shrink-0' />
+                            <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default min-w-0'>
+                              <p className='pr-6 break-words leading-relaxed'>Bài {runningLectureIndex}: {lecture.lectureTitle}</p>
+                              <div className='flex items-center gap-5 flex-shrink-0 text-gray-500 ml-auto'>
+                                {lecture.lectureUrl && (
+                                  <p
+                                    onClick={() => handleSelectLecture(lecture, index, i)}
+                                    className='text-blue-500 cursor-pointer hover:underline whitespace-nowrap'
+                                  >
+                                    Xem
+                                  </p>
+                                )}
+                                <p className='whitespace-nowrap'>{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'], language: 'vi', languages: { vi: { h: () => 'giờ', m: () => 'phút' } } })}</p>
+                              </div>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
                 </div>
-                <div
-                  className={`overflow-hidden transition-all duration-300 ${openSections[index] ? 'max-h-96' : 'max-h-0'}`}
+              ));
+            })()}
+
+            {/* Always visible at the bottom of the curriculum list */}
+            {courseData && (
+              <div className='mt-6 p-4 bg-slate-50 border border-slate-200 rounded-xl flex flex-wrap gap-3 items-center justify-start shadow-xs'>
+                <button
+                  disabled={!isFinalExamUnlocked || !courseData.finalExam?.isPublished || !courseData.finalExam?.questions?.length || progressData?.finalExamPassed}
+                  onClick={() => {
+                    setShowFinalExam(true)
+                  }}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-bold shadow-xs ${
+                    (!isFinalExamUnlocked || !courseData.finalExam?.isPublished || !courseData.finalExam?.questions?.length || progressData?.finalExamPassed)
+                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                      : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/10 cursor-pointer'
+                  }`}
                 >
-                  <ul className='list-disc md:pl-10 pl-4 pr-4 py-2 text-gray-600 border-t border-gray-300'>
-                    {chapter.chapterContent.map((lecture, i) => (
-                      <li key={i} className='flex items-start gap-2 py-1'>
-                        <img src={progressData && progressData.lectureCompleted.includes(lecture.lectureId) ? assets.blue_tick_icon : assets.play_icon} alt="play icon" className='w-4 h-4 mt-1 flex-shrink-0' />
-                        <div className='flex items-center justify-between w-full text-gray-800 text-xs md:text-default min-w-0'>
-                          <p className='pr-6 break-words leading-relaxed'>{lecture.lectureTitle}</p>
-                          <div className='flex items-center gap-5 flex-shrink-0 text-gray-500 ml-auto'>
-                            {lecture.lectureUrl && (
-                              <p
-                                onClick={() => handleSelectLecture(lecture, index, i)}
-                                className='text-blue-500 cursor-pointer hover:underline whitespace-nowrap'
-                              >
-                                Xem
-                              </p>
-                            )}
-                            <p className='whitespace-nowrap'>{humanizeDuration(lecture.lectureDuration * 60 * 1000, { units: ['h', 'm'], language: 'vi', languages: { vi: { h: () => 'giờ', m: () => 'phút' } } })}</p>
-                          </div>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
+                  <svg className="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
+                  </svg>
+                  Thi Hết Khóa {progressData?.finalExamPassed ? '(Đã Đạt)' : ''}
+                </button>
+
+                <button
+                  disabled={!progressData?.finalExamPassed}
+                  onClick={() => {
+                    setShowCertificate(true)
+                  }}
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-bold shadow-xs ${
+                    progressData?.finalExamPassed
+                      ? 'bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-md shadow-emerald-500/10 cursor-pointer'
+                      : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
+                  }`}
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <circle cx="12" cy="8" r="6" strokeWidth={2} />
+                    <path d="M8.21 13.89L7 23l5-3 5 3-1.21-9.12" strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} />
+                  </svg>
+                  Nhận Chứng Chỉ
+                </button>
               </div>
-            ))}
+            )}
           </div>
 
           <div className='flex items-center gap-2 py-3 mt-10'>
@@ -356,18 +412,18 @@ const Player = () => {
               <div className='flex justify-between items-center mt-2.5 p-3.5 bg-slate-50 border border-slate-100 rounded-xl shadow-xs'>
                 <p className='font-bold text-slate-800 text-sm md:text-base'>{playerData.chapter}.{playerData.lecture} {playerData.lectureTitle}</p>
                 {progressData && progressData.lectureCompleted.includes(playerData.lectureId) ? (
-                  <span className='inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-bold shadow-xs animate-fadeIn'>
+                  <span className='inline-flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 border border-green-200 rounded-full text-xs font-bold shadow-xs animate-fadeIn whitespace-nowrap flex-shrink-0'>
                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
                     Đã hoàn thành
                   </span>
                 ) : (
-                  <span className='inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-bold shadow-xs'>
-                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <span className='inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-bold shadow-xs whitespace-nowrap flex-shrink-0'>
+                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Đang học (Tự động hoàn thành ≥ 90%)
+                    Đang học
                   </span>
                 )}
               </div>
@@ -408,42 +464,6 @@ const Player = () => {
                   </svg>
                   Hỏi AI
                 </button>
-
-                {/* Final Exam Section Button */}
-                {courseData.finalExam?.questions?.length > 0 && (
-                  <button
-                    onClick={() => {
-                      if (!isFinalExamUnlocked) {
-                        toast.error(`Bạn cần hoàn thành đầy đủ tất cả bài học (${progressData?.lectureCompleted?.length || 0}/${totalCourseLectures}) trước khi làm bài thi tốt nghiệp!`)
-                        return
-                      }
-                      setShowFinalExam(true)
-                    }}
-                    className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-sm font-bold shadow-xs ${
-                      isFinalExamUnlocked 
-                        ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 cursor-pointer animate-pulse' 
-                        : 'bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300/30'
-                    }`}
-                  >
-                    <svg className="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
-                    </svg>
-                    🏆 Thi Hết Khóa {isFinalExamUnlocked ? '' : `(${progressData?.lectureCompleted?.length || 0}/${totalCourseLectures})`}
-                  </button>
-                )}
-
-                {/* Certificate Showcase Button */}
-                {(progressData?.finalExamPassed || (courseData.finalExam?.isPublished === false && isFinalExamUnlocked)) && (
-                  <button
-                    onClick={() => setShowCertificate(true)}
-                    className='inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white font-bold rounded-xl transition-all text-sm shadow-md cursor-pointer shadow-emerald-500/10'
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
-                    </svg>
-                    🎓 Nhận Chứng Chỉ
-                  </button>
-                )}
               </div>
             </div>
           ) 
@@ -474,9 +494,9 @@ const Player = () => {
         />
       )}
       
-      {/* AI Quiz Modal */}
+      {/* Quiz Practice Modal */}
       {showAIQuiz && (
-        <AIQuizGenerator
+        <QuizPractice
           lecture={playerData}
           onClose={() => setShowAIQuiz(false)}
         />
@@ -484,7 +504,7 @@ const Player = () => {
 
       {/* Final Graduation Exam Modal */}
       {showFinalExam && (
-        <AIFinalExam
+        <FinalExam
           courseId={courseId}
           courseTitle={courseData.courseTitle}
           finalExam={courseData.finalExam}

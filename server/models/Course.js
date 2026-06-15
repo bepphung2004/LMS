@@ -47,6 +47,7 @@ const courseSchema = new mongoose.Schema({
   ],
   finalExam: {
     requiredScorePercent: { type: Number, default: 70, min: 0, max: 100 },
+    durationMins: { type: Number, default: 30, min: 1 },
     isPublished: { type: Boolean, default: false },
     questions: [
       {

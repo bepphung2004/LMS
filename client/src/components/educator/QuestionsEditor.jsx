@@ -34,7 +34,8 @@ const QuestionsEditor = ({
   questionPlaceholder = 'Nhập nội dung câu hỏi...',
   optionsLabel = 'Các phương án',
   radioGroupName = 'correctAnswer',
-  deleteConfirmText = 'Xóa câu hỏi này?'
+  deleteConfirmText = 'Xóa câu hỏi này?',
+  showExplanation = true
 }) => {
   const [questions, setQuestions] = useState(() => {
     const raw = JSON.parse(JSON.stringify(initialQuestions || []))
@@ -218,16 +219,18 @@ const QuestionsEditor = ({
               </div>
 
               {/* Explanation */}
-              <div className='space-y-2'>
-                <label className='text-xs font-semibold text-gray-500 uppercase tracking-wider block'>Giải thích đáp án</label>
-                <input
-                  type='text'
-                  value={questions[activeIdx].explanation || ''}
-                  onChange={(e) => updateExplanationText(activeIdx, e.target.value)}
-                  className='outline-none w-full px-4 py-2.5 border border-gray-300 rounded focus:border-blue-500 bg-white text-gray-850 text-sm transition-all'
-                  placeholder='Lý giải vì sao đáp án này đúng...'
-                />
-              </div>
+              {showExplanation && (
+                <div className='space-y-2'>
+                  <label className='text-xs font-semibold text-gray-500 uppercase tracking-wider block'>Giải thích đáp án</label>
+                  <input
+                    type='text'
+                    value={questions[activeIdx].explanation || ''}
+                    onChange={(e) => updateExplanationText(activeIdx, e.target.value)}
+                    className='outline-none w-full px-4 py-2.5 border border-gray-300 rounded focus:border-blue-500 bg-white text-gray-850 text-sm transition-all'
+                    placeholder='Lý giải vì sao đáp án này đúng...'
+                  />
+                </div>
+              )}
             </div>
           ) : (
             <div className='text-center py-10 border border-dashed border-gray-250 rounded-lg text-gray-400 text-sm'>
@@ -342,7 +345,7 @@ const QuestionsEditor = ({
                             )
                           })}
                         </div>
-                        {q.explanation && (
+                        {showExplanation && q.explanation && (
                           <div className='p-3 bg-blue-50/50 rounded-lg border border-blue-100/50 text-xs text-blue-900'>
                             <strong className='font-semibold block mb-0.5'>Giải thích:</strong>
                             {q.explanation}

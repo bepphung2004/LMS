@@ -539,7 +539,7 @@ export const saveLectureQuiz = async (req, res) => {
 
 export const saveFinalExam = async (req, res) => {
   try {
-    const { courseId, requiredScorePercent, isPublished, questions } = req.body
+    const { courseId, requiredScorePercent, isPublished, questions, durationMins } = req.body
     const userId = req.auth.userId
 
     const course = await Course.findById(courseId)
@@ -553,6 +553,7 @@ export const saveFinalExam = async (req, res) => {
 
     course.finalExam = {
       requiredScorePercent: Number(requiredScorePercent ?? 70),
+      durationMins: Number(durationMins ?? 30),
       isPublished: true,
       questions: questions || []
     }
