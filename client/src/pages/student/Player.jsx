@@ -12,9 +12,11 @@ import Loading from '../../components/student/Loading'
 import AIChatbot, { AIFloatingButton } from '../../components/student/AIChatbot'
 import { AILessonSummary, QuizPractice, FinalExam } from '../../components/student/AITools'
 import CertificateModal from '../../components/student/CertificateModal'
+import { useUser } from '@clerk/clerk-react'
 
 const Player = () => {
 
+  const { user } = useUser()
   const { enrolledCourses, calculateChapterTime, backendUrl, getToken, userData, fetchUserEnrolledCourses, fetchAllCourses } = useContext(AppContext)
 
   const { courseId } = useParams()
@@ -152,8 +154,8 @@ const Player = () => {
       if (data.success) {
         toast.success(data.message)
         // Clear local storage progress since it is completed
-        if (userData) {
-          localStorage.removeItem(`LMS_progress_${userData._id}_${lectureId}`)
+        if (user?.id) {
+          localStorage.removeItem(`LMS_progress_${user.id}_${lectureId}`)
         }
         // Refresh both user enrolled list and active progress data
         await Promise.all([
@@ -245,10 +247,10 @@ const Player = () => {
     setYtPlayer(player)
 
     // Check if there is saved progress
-    if (userData && playerData?.lectureId) {
+    if (user?.id && playerData?.lectureId) {
       const isCompleted = progressData?.lectureCompleted?.includes(playerData.lectureId)
       if (!isCompleted) {
-        const savedTimeRaw = localStorage.getItem(`LMS_progress_${userData._id}_${playerData.lectureId}`)
+        const savedTimeRaw = localStorage.getItem(`LMS_progress_${user.id}_${playerData.lectureId}`)
         if (savedTimeRaw) {
           const savedTime = parseFloat(savedTimeRaw)
           const duration = player.getDuration()
@@ -264,7 +266,7 @@ const Player = () => {
                 player.seekTo(savedTime, true)
                 maxTimeWatchedRef.current = savedTime
               } else {
-                localStorage.removeItem(`LMS_progress_${userData._id}_${playerData.lectureId}`)
+                localStorage.removeItem(`LMS_progress_${user.id}_${playerData.lectureId}`)
               }
             }, 500)
           }
@@ -293,8 +295,8 @@ const Player = () => {
           }
 
           // Save watching progress to localStorage (only if not completed yet)
-          if (!isCompleted && userData && playerData?.lectureId) {
-            localStorage.setItem(`LMS_progress_${userData._id}_${playerData.lectureId}`, currentTime)
+          if (!isCompleted && user?.id && playerData?.lectureId) {
+            localStorage.setItem(`LMS_progress_${user.id}_${playerData.lectureId}`, currentTime)
           }
 
           // Auto-mark completed at >= 90%
@@ -316,8 +318,8 @@ const Player = () => {
 
   const handleEnd = () => {
     handlePause()
-    if (userData && playerData?.lectureId) {
-      localStorage.removeItem(`LMS_progress_${userData._id}_${playerData.lectureId}`)
+    if (user?.id && playerData?.lectureId) {
+      localStorage.removeItem(`LMS_progress_${user.id}_${playerData.lectureId}`)
     }
   }
 
