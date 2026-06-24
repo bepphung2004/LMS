@@ -25,7 +25,7 @@ const Player = () => {
   const [playerData, setPlayerData] = useState(null)
   const [progressData, setProgressData] = useState(null)
   const [initialRating, setInitialRating] = useState(0)
-  
+
   // AI and Exam features state
   const [showAIChat, setShowAIChat] = useState(false)
   const [showAISummary, setShowAISummary] = useState(false)
@@ -35,7 +35,7 @@ const Player = () => {
   const [currentChapterIndex, setCurrentChapterIndex] = useState(0)
   const [currentLectureIndex, setCurrentLectureIndex] = useState(0)
 
-  // Youtube Player and Anti-cheat state refs
+  // Youtube Player and Anti-cheat state
   const [ytPlayer, setYtPlayer] = useState(null)
   const maxTimeWatchedRef = useRef(0)
   const intervalRef = useRef(null)
@@ -91,7 +91,7 @@ const Player = () => {
     enrolledCourses.map((course) => {
       if (course._id === courseId) {
         setCourseData(course)
-        
+
         // Auto-expand all chapters
         if (course.courseContent) {
           const initialOpen = {}
@@ -102,7 +102,7 @@ const Player = () => {
         }
 
         course.courseRatings.map((item) => {
-          if (item.userId === userData._id){
+          if (item.userId === userData._id) {
             setInitialRating(item.rating ?? item.Rating ?? 0)
           }
         })
@@ -112,14 +112,15 @@ const Player = () => {
 
   const toggleSection = (index) => {
     setOpenSections((prev) => (
-      {...prev,
+      {
+        ...prev,
         [index]: !prev[index]
       }
     ))
   }
 
   useEffect(() => {
-    if (enrolledCourses.length > 0 ){
+    if (enrolledCourses.length > 0) {
       getCourseData()
     }
   }, [courseId, enrolledCourses])
@@ -146,7 +147,7 @@ const Player = () => {
   const markLectureAsCompleted = async (lectureId) => {
     try {
       const token = await getToken()
-      const { data } = await axios.post(backendUrl + '/api/user/update-course-progress', {courseId, lectureId}, {
+      const { data } = await axios.post(backendUrl + '/api/user/update-course-progress', { courseId, lectureId }, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -173,7 +174,7 @@ const Player = () => {
   const getCourseProgress = async () => {
     try {
       const token = await getToken()
-      const { data } = await axios.post(backendUrl + '/api/user/get-course-progress', {courseId}, {
+      const { data } = await axios.post(backendUrl + '/api/user/get-course-progress', { courseId }, {
         headers: {
           Authorization: `Bearer ${token}`
         }
@@ -254,12 +255,12 @@ const Player = () => {
         if (savedTimeRaw) {
           const savedTime = parseFloat(savedTimeRaw)
           const duration = player.getDuration()
-          
+
           if (savedTime > 5 && (duration === 0 || savedTime < duration * 0.9)) {
             const minutes = Math.floor(savedTime / 60)
             const seconds = Math.floor(savedTime % 60)
             const timeString = `${minutes} phút ${seconds} giây`
-            
+
             setTimeout(() => {
               const confirmContinue = window.confirm(`Bạn đã xem bài giảng này đến ${timeString}. Bạn có muốn tiếp tục xem từ vị trí này không? (Chọn Cancel để xem lại từ đầu)`)
               if (confirmContinue) {
@@ -403,11 +404,10 @@ const Player = () => {
                   onClick={() => {
                     setShowFinalExam(true)
                   }}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-bold shadow-xs ${
-                    (!isFinalExamUnlocked || !courseData.finalExam?.isPublished || !courseData.finalExam?.questions?.length || progressData?.finalExamPassed)
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-bold shadow-xs ${(!isFinalExamUnlocked || !courseData.finalExam?.isPublished || !courseData.finalExam?.questions?.length || progressData?.finalExamPassed)
                       ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
                       : 'bg-blue-600 hover:bg-blue-700 text-white shadow-md shadow-blue-500/10 cursor-pointer'
-                  }`}
+                    }`}
                 >
                   <svg className="w-4 h-4 text-current" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 14l9-5-9-5-9 5 9 5zm0 0l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14zm-4 6v-7.5l4-2.222" />
@@ -420,11 +420,10 @@ const Player = () => {
                   onClick={() => {
                     setShowCertificate(true)
                   }}
-                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-bold shadow-xs ${
-                    progressData?.finalExamPassed
+                  className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all text-xs sm:text-sm font-bold shadow-xs ${progressData?.finalExamPassed
                       ? 'bg-gradient-to-r from-teal-500 to-emerald-500 hover:from-teal-600 hover:to-emerald-600 text-white shadow-md shadow-emerald-500/10 cursor-pointer'
                       : 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed'
-                  }`}
+                    }`}
                 >
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <circle cx="12" cy="8" r="6" strokeWidth={2} />
@@ -443,18 +442,18 @@ const Player = () => {
         </div>
         {/* right column */}
         <div className='md:mt-10'>
-          { playerData ? (
+          {playerData ? (
             <div>
-              <Youtube 
-                key={playerData.instanceKey} 
-                videoId={playerData.videoId} 
+              <Youtube
+                key={playerData.instanceKey}
+                videoId={playerData.videoId}
                 iframeClassName='w-full aspect-video'
                 onReady={onPlayerReady}
                 onPlay={handlePlay}
                 onPause={handlePause}
                 onEnd={handleEnd}
               />
-              
+
               {/* Premium Progress / State Indicator */}
               <div className='flex justify-between items-center mt-2.5 p-3.5 bg-slate-50 border border-slate-100 rounded-xl shadow-xs'>
                 <p className='font-bold text-slate-800 text-sm md:text-base'>{playerData.chapter}.{playerData.lecture} {playerData.lectureTitle}</p>
@@ -474,7 +473,7 @@ const Player = () => {
                   </span>
                 )}
               </div>
-              
+
               {/* AI Tools Bar */}
               <div className='flex flex-wrap gap-2.5 mt-4 p-4 bg-linear-to-r from-gray-50 to-blue-50 rounded-2xl border border-blue-100/50 shadow-xs'>
                 <span className='text-xs text-gray-500 w-full mb-1 uppercase font-bold tracking-wider font-montserrat'>Bảng Công Cụ Học Tập & AI:</span>
@@ -513,23 +512,23 @@ const Player = () => {
                 </button>
               </div>
             </div>
-          ) 
-          :
-          <img src={courseData ? courseData.courseThumbnail : ''} alt="" />
+          )
+            :
+            <img src={courseData ? courseData.courseThumbnail : ''} alt="" />
           }
-          
+
         </div>
       </div>
-      
+
       {/* AI Chatbot */}
-      <AIChatbot 
-        courseId={courseId} 
+      <AIChatbot
+        courseId={courseId}
         lectureId={playerData?.lectureId}
         lessonContext={playerData?.lectureTitle}
-        isOpen={showAIChat} 
-        onClose={() => setShowAIChat(false)} 
+        isOpen={showAIChat}
+        onClose={() => setShowAIChat(false)}
       />
-      
+
       {/* AI Summary Modal */}
       {showAISummary && (
         <AILessonSummary
@@ -540,7 +539,7 @@ const Player = () => {
           onClose={() => setShowAISummary(false)}
         />
       )}
-      
+
       {/* Quiz Practice Modal */}
       {showAIQuiz && (
         <QuizPractice
@@ -569,10 +568,10 @@ const Player = () => {
           onClose={() => setShowCertificate(false)}
         />
       )}
-      
+
       {/* Floating AI Button */}
       {!showAIChat && <AIFloatingButton onClick={() => setShowAIChat(true)} />}
-      
+
       <Footer />
     </div>
   ) : <Loading />
