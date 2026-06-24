@@ -143,7 +143,20 @@ LMS/
   ],
   courseRatings: [{ userId: { type: String }, rating: { type: Number, min: 1, max: 5 } }],
   educator: { type: String, ref: 'User', required: true },
-  enrolledStudents: [{ type: String, ref: 'User' }]
+  enrolledStudents: [{ type: String, ref: 'User' }],
+  finalExam: {
+    requiredScorePercent: { type: Number, default: 70, min: 0, max: 100 },
+    durationMins: { type: Number, default: 30, min: 1 },
+    isPublished: { type: Boolean, default: false },
+    questions: [
+      {
+        question: { type: String, required: true },
+        options: [{ type: String, required: true }],
+        correctAnswer: { type: Number, required: true },
+        explanation: { type: String, default: '' }
+      }
+    ]
+  }
 } // timestamps: true
 ```
 
@@ -187,7 +200,9 @@ LMS/
   userId: { type: String, required: true }, // Không dùng ref ObjectId do userId là Clerk ID
   courseId: { type: String, required: true },
   completed: { type: Boolean, default: false },
-  lectureCompleted: [] // Array chứa ID các bài học đã hoàn thành
+  lectureCompleted: [], // Array chứa ID các bài học đã hoàn thành
+  finalExamScore: { type: Number, default: null }, // Điểm thi cuối khóa đạt được
+  finalExamPassed: { type: Boolean, default: false } // Trạng thái đỗ bài thi cuối khóa
 }
 ```
 

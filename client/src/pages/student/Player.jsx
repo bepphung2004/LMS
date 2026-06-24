@@ -151,6 +151,10 @@ const Player = () => {
       })
       if (data.success) {
         toast.success(data.message)
+        // Clear local storage progress since it is completed
+        if (userData) {
+          localStorage.removeItem(`LMS_progress_${userData._id}_${lectureId}`)
+        }
         // Refresh both user enrolled list and active progress data
         await Promise.all([
           fetchUserEnrolledCourses(),
@@ -237,7 +241,36 @@ const Player = () => {
 
   // Anti-cheat and progress tracking handler functions
   const onPlayerReady = (event) => {
-    setYtPlayer(event.target)
+    const player = event.target
+    setYtPlayer(player)
+
+    // Check if there is saved progress
+    if (userData && playerData?.lectureId) {
+      const isCompleted = progressData?.lectureCompleted?.includes(playerData.lectureId)
+      if (!isCompleted) {
+        const savedTimeRaw = localStorage.getItem(`LMS_progress_${userData._id}_${playerData.lectureId}`)
+        if (savedTimeRaw) {
+          const savedTime = parseFloat(savedTimeRaw)
+          const duration = player.getDuration()
+          
+          if (savedTime > 5 && (duration === 0 || savedTime < duration * 0.9)) {
+            const minutes = Math.floor(savedTime / 60)
+            const seconds = Math.floor(savedTime % 60)
+            const timeString = `${minutes} phút ${seconds} giây`
+            
+            setTimeout(() => {
+              const confirmContinue = window.confirm(`Bạn đã xem bài giảng này đến ${timeString}. Bạn có muốn tiếp tục xem từ vị trí này không? (Chọn Cancel để xem lại từ đầu)`)
+              if (confirmContinue) {
+                player.seekTo(savedTime, true)
+                maxTimeWatchedRef.current = savedTime
+              } else {
+                localStorage.removeItem(`LMS_progress_${userData._id}_${playerData.lectureId}`)
+              }
+            }, 500)
+          }
+        }
+      }
+    }
   }
 
   const handlePlay = (event) => {
@@ -259,6 +292,11 @@ const Player = () => {
             maxTimeWatchedRef.current = Math.max(maxTimeWatchedRef.current, currentTime)
           }
 
+          // Save watching progress to localStorage (only if not completed yet)
+          if (!isCompleted && userData && playerData?.lectureId) {
+            localStorage.setItem(`LMS_progress_${userData._id}_${playerData.lectureId}`, currentTime)
+          }
+
           // Auto-mark completed at >= 90%
           if (!isCompleted && !isMarkingRef.current && (currentTime / duration) >= 0.90) {
             isMarkingRef.current = true
@@ -273,6 +311,13 @@ const Player = () => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
       intervalRef.current = null
+    }
+  }
+
+  const handleEnd = () => {
+    handlePause()
+    if (userData && playerData?.lectureId) {
+      localStorage.removeItem(`LMS_progress_${userData._id}_${playerData.lectureId}`)
     }
   }
 
@@ -405,7 +450,7 @@ const Player = () => {
                 onReady={onPlayerReady}
                 onPlay={handlePlay}
                 onPause={handlePause}
-                onEnd={handlePause}
+                onEnd={handleEnd}
               />
               
               {/* Premium Progress / State Indicator */}

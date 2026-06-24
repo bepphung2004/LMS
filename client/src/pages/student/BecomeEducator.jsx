@@ -46,8 +46,8 @@ const BecomeEducator = () => {
           headers: { Authorization: `Bearer ${token}` }
         })
         
-        if (data.success && data.application) {
-          setApplicationStatus(data.application)
+        if (data.success) {
+          setApplicationStatus(data.application || null)
         }
       } catch (error) {
         console.error('Error checking application status:', error)
